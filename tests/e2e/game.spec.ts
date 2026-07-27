@@ -115,6 +115,18 @@ test('no consequence is shown before it is chosen', async ({ page }) => {
   await expect(page.locator('#step-result')).toBeHidden();
 });
 
+test('the second account never shows a total', async ({ page }) => {
+  await serveFeed(page, fixture);
+  await page.goto('/');
+
+  // A number there would be a price, and a price is the one thing the mechanic
+  // says does not exist. This is the assertion that would fail if someone
+  // "improved" it by scoring the record.
+  const other = page.locator('.ledger.other');
+  await expect(other).toBeVisible();
+  await expect(other.locator('.ledger-figure')).toHaveCount(0);
+});
+
 test('an empty archive is a state, not a failure', async ({ page }) => {
   await serveFeed(page, { version: 1, count: 0, episodes: [] });
   await page.goto('/');
