@@ -3,3 +3,6 @@ dist/
 test-results/
 playwright-report/
 .DS_Store
+
+# Local-only analysis. Lives in the bot wiki, which has no remote.
+competitor-analysis.md
