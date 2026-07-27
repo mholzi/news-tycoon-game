@@ -26,8 +26,8 @@ const fixture = JSON.parse(
     decision: {
       desk: string;
       voices: { who: string }[];
-      print: { now: string; issues: number };
-      hold: { issues: number };
+      print: { now: string; later: string; issues: number };
+      hold: { later: string; issues: number };
     };
   }[];
 };
@@ -102,17 +102,60 @@ test('a full run: two episodes printed, and both bills land in the record', asyn
   await expect(page.locator('#record-empty')).toBeHidden();
 });
 
-test('no consequence is shown before it is chosen', async ({ page }) => {
+test('no consequence is shown before it is chosen, and none lands in its own issue', async ({
+  page,
+}) => {
+  // The whole argument in one test, and the reason it is worth this much code.
+  //
+  // Both futures are in the payload, because a static feed has nowhere else to
+  // put them. Asserting that the panels are hidden is not enough: the text
+  // could leak anywhere on the page and every panel assertion would still
+  // pass. So this reads the rendered body and checks the strings themselves,
+  // then runs the campaign out and checks they do eventually arrive. A version
+  // of this guarded the site page before the move; it is the strongest thing
+  // that came across and it deserved to come across intact.
   await serveFeed(page, fixture);
   await page.goto('/');
+  await expect(page.locator('#game')).toBeVisible();
 
-  // Both futures are in the payload, because a static feed has nowhere else to
-  // put them. What must not happen is the page showing them before the choice.
+  const laters = fixture.episodes.flatMap((e) => [e.decision.print.later, e.decision.hold.later]);
+  expect(laters.length).toBeGreaterThan(0);
+
+  const bodyHasAnyLater = async () => {
+    const text = await page.locator('body').innerText();
+    return laters.some((later) => text.includes(later));
+  };
+
+  // Nothing on arrival.
+  expect(await bodyHasAnyLater()).toBe(false);
   await expect(page.locator('#step-print')).toBeHidden();
   await expect(page.locator('#step-result')).toBeHidden();
+
+  // Nothing after choosing a voice, and nothing in the issue you decide in.
   await page.locator('#voices button').first().click();
   await expect(page.locator('#step-print')).toBeVisible();
-  await expect(page.locator('#step-result')).toBeHidden();
+  expect(await bodyHasAnyLater()).toBe(false);
+  await page.locator('#do-print').click();
+  await expect(page.locator('#step-result')).toBeVisible();
+  expect(await bodyHasAnyLater()).toBe(false);
+
+  // Run the campaign out, and confirm the bills do arrive in the end.
+  for (let guard = 0; guard < 60; guard += 1) {
+    if (await page.locator('#done').isVisible()) break;
+    if (await page.locator('#step-print').isVisible()) {
+      await page.locator('#do-hold').click();
+    } else if (await page.locator('#next').isVisible()) {
+      await page.locator('#next').click();
+    } else if (await page.locator('#quiet-next').isVisible()) {
+      await page.locator('#quiet-next').click();
+    } else {
+      await page.locator('#voices button').first().click();
+    }
+  }
+
+  await expect(page.locator('#done')).toBeVisible();
+  await expect(page.locator('#record li')).not.toHaveCount(0);
+  expect(await bodyHasAnyLater()).toBe(true);
 });
 
 test('the second account never shows a total', async ({ page }) => {
