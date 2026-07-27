@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>News Tycoon</title>
+    <meta
+      name="description"
+      content="One issue at a time: who to believe, whether to print, and a bill that arrives long after you have forgotten the decision that caused it."
+    />
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <main class="page">
+      <section class="stack">
+        <h1>News Tycoon</h1>
+        <p class="lede">
+          The trade stays unsolvable because you cannot verify, the bill arrives much later, and
+          the second account has no price on it. Reading that is not the same as it being true.
+          This is the smallest thing that can test it.
+        </p>
+        <p class="meta">
+          It plays the real research, fetched from the archive at
+          <a href="https://news-tycoon.vercel.app/play.json">play.json</a>. Rough on purpose, and
+          the numbers behind the delays are a first guess rather than a finding.
+        </p>
+      </section>
+
+      <!--
+        Three states, exactly one visible at a time. `#empty` and `#error` did
+        not exist while the game was compiled into the site: a payload baked
+        into the page at build time cannot fail to arrive or turn up empty.
+        Fetching it can do both.
+      -->
+      <section class="stack" id="loading">
+        <p class="meta">Loading the archive…</p>
+      </section>
+
+      <section class="stack" id="empty" hidden>
+        <p class="meta">Nothing to play yet.</p>
+      </section>
+
+      <section class="stack" id="error" hidden>
+        <p class="meta">The archive could not be loaded.</p>
+      </section>
+
+      <section class="stack" id="game" hidden>
+        <div class="ledgers">
+          <div class="ledger">
+            <p class="ledger-label">The owner's account</p>
+            <p class="ledger-figure" id="printed">0</p>
+            <p class="meta">stories run</p>
+          </div>
+          <div class="ledger other">
+            <p class="ledger-label">The other account</p>
+            <p class="meta" id="record-empty">Nothing has come back yet.</p>
+            <ol class="record" id="record"></ol>
+          </div>
+        </div>
+
+        <div class="issue" id="issue">
+          <p class="eyebrow"><span id="issue-no">Issue 1</span> · <span id="issue-where"></span></p>
+          <p class="desk" id="desk"></p>
+
+          <div id="step-believe">
+            <h2>Who do you believe?</h2>
+            <ul class="voices" id="voices"></ul>
+          </div>
+
+          <div id="step-print" hidden>
+            <h2>Do you print it?</h2>
+            <p class="meta" id="cannot-know"></p>
+            <div class="choices">
+              <button type="button" class="cta" id="do-print">Print it</button>
+              <button type="button" class="cta" id="do-hold">Hold it</button>
+            </div>
+          </div>
+
+          <div id="step-result" hidden>
+            <p class="result" id="result-now"></p>
+            <p class="meta" id="result-wait"></p>
+            <div class="choices">
+              <button type="button" class="cta" id="next">Next issue</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- A paper comes out whether or not there is a dilemma in it. Without
+             these the archive runs out at issue two while the earliest bill is
+             due at issue five, and the one mechanic this game exists to test
+             never gets to happen. -->
+        <div class="issue" id="quiet" hidden>
+          <p class="eyebrow"><span id="quiet-no"></span> · nothing on the desk</p>
+          <p class="desk">
+            An ordinary issue. Someone else's story leads, the paper goes out, and you would not
+            remember this week at all.
+          </p>
+          <p class="meta" id="quiet-owed"></p>
+          <div class="choices">
+            <button type="button" class="cta" id="quiet-next">Next issue</button>
+          </div>
+        </div>
+
+        <div class="issue" id="done" hidden>
+          <h2>That is the whole archive</h2>
+          <p id="done-text"></p>
+          <p class="meta" id="done-pending"></p>
+          <div class="choices">
+            <button type="button" class="cta" id="again">Start again</button>
+          </div>
+        </div>
+      </section>
+
+      <noscript>
+        <p class="meta">
+          This one needs JavaScript, because it is a game. The research it plays is readable
+          without it, at
+          <a href="https://news-tycoon.vercel.app/blog/">news-tycoon.vercel.app</a>.
+        </p>
+      </noscript>
+    </main>
+  </body>
+</html>

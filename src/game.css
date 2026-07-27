@@ -1,0 +1,268 @@
+/*
+ * Everything the game needs to look like itself.
+ *
+ * Three parts, in this order: a base the site's `global.css` used to provide,
+ * the rules moved out of `prototype.astro`'s scoped `<style>`, and the ones
+ * moved out of its `<style is:global>`.
+ *
+ * The split between the last two mattered in Astro because script-built nodes
+ * never carried the scope attribute and a scoped rule could not reach them.
+ * Here nothing is scoped and the distinction is gone; the boundary is kept
+ * only because it is where the original comment lives and it still explains
+ * which selectors exist for elements the script creates.
+ */
+
+/* ---- base: what BaseLayout and global.css used to give the page ---- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--reading);
+  font-size: var(--step-0);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  max-width: var(--page);
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+h1,
+h2 {
+  margin: 0;
+  line-height: 1.15;
+}
+
+h1 {
+  font-size: var(--step-3);
+}
+
+h2 {
+  font-size: var(--step-1);
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--accent);
+}
+
+/*
+ * `hidden` has to mean hidden.
+ *
+ * The browser's own rule carries the weakest specificity there is, so any class
+ * that sets `display` beats it silently. `.stack` and `.issue` both set flex,
+ * which is exactly how the three states ended up stacked on top of each other
+ * the first time. This cost two bugs on the site before it was written down.
+ */
+[hidden] {
+  display: none !important;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.lede {
+  font-size: var(--step-1);
+}
+
+.meta {
+  font-family: var(--mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.cta {
+  font-family: var(--mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  padding: 0.8rem 1rem;
+  display: inline-block;
+  text-decoration: none;
+  color: var(--accent);
+  background: transparent;
+}
+
+/* ---- moved from prototype.astro:357-438 ---- */
+
+.ledgers {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+@media (min-width: 34rem) {
+  .ledgers {
+    grid-template-columns: 10rem 1fr;
+  }
+}
+
+.ledger {
+  padding: var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--raised);
+}
+
+.ledger-label {
+  font-family: var(--mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.ledger-figure {
+  font-size: var(--step-3);
+  line-height: 1.1;
+}
+
+/* No figure on this one, and no room for one. The second account is a list
+   because a number would be a price, and a price is exactly what the game
+   argues does not exist. */
+.record {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.issue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 2px solid var(--ink);
+}
+
+.desk {
+  font-size: var(--step-1);
+}
+
+.voices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+button.cta {
+  font: inherit;
+  font-family: var(--mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.result {
+  font-size: var(--step-1);
+}
+
+/* ---- moved from prototype.astro:447-507 ---- */
+
+/*
+  The voices and the record entries are built by the script, so on the site
+  they never carried Astro's scope attribute and a scoped rule could not reach
+  them — the first render came out as unstyled grey boxes with the words run
+  together. The selectors stay rooted at ids for the same reason they were:
+  they describe elements that only exist once the game is running.
+*/
+
+#record li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--rule-soft);
+}
+
+#record .record-from {
+  font-family: var(--mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+#voices .voice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--raised);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+#voices .voice:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+#voices .voice:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+#voices .voice.chosen {
+  border-color: var(--accent);
+  opacity: 1;
+}
+
+#voices .voice-who {
+  font-family: var(--mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+#voices .voice-says {
+  font-size: var(--step-0);
+}
+
+#voices .voice-note {
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+}

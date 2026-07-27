@@ -1,0 +1,53 @@
+/*
+ * Copied from the site's `src/styles/tokens.css`, not imported.
+ *
+ * Sharing them properly is a package and a second repo boundary; copying them
+ * is 40 lines and one decision. The values are asserted by a test, so a drift
+ * between the two repos shows up as a red build rather than as a game that
+ * quietly stops looking like the thing it came from.
+ *
+ * `--ground` is here even though the game never referenced it directly: the
+ * site's BaseLayout set the page background, and without it the dark theme
+ * renders light text on white.
+ */
+:root {
+  color-scheme: light dark;
+
+  --ground: #fbfaf8;
+  --raised: #ffffff;
+  --ink: #17191e;
+  --ink-soft: #565d6b;
+  --ink-faint: #646b78;
+  --rule: #e3e1dc;
+  --rule-soft: #efede9;
+  --accent: #8c2f39;
+
+  /* The site loads Newsreader as a webfont. The game does not ship it, so this
+     falls through to Charter or Georgia. Same stack, one entry shorter. */
+  --reading: Charter, Georgia, serif;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  --step--1: clamp(0.78rem, 0.76rem + 0.1vw, 0.84rem);
+  --step-0: clamp(1.06rem, 1.03rem + 0.15vw, 1.12rem);
+  --step-1: clamp(1.15rem, 1.09rem + 0.3vw, 1.3rem);
+  --step-3: clamp(1.8rem, 1.55rem + 1.2vw, 2.6rem);
+
+  --space-2: 0.7rem;
+  --space-3: 1.1rem;
+  --space-4: 1.8rem;
+
+  --page: 46rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #121317;
+    --raised: #191b20;
+    --ink: #e9e7e3;
+    --ink-soft: #a3a8b2;
+    --ink-faint: #838a97;
+    --rule: #2c2f36;
+    --rule-soft: #23262c;
+    --accent: #d98089;
+  }
+}

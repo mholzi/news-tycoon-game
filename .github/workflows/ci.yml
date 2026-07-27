@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install the browser Playwright needs
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit and integration tests
+        run: npm run test:unit
+
+      # The build has to exist before the e2e run, which is why this follows
+      # the build step rather than sitting beside it.
+      - name: End-to-end tests
+        run: npx playwright test --grep-invert @network
+
+      # Watches for the site changing the shape the game depends on. Allowed to
+      # fail the step and not the build: Vercel being down is not a regression
+      # in this repository, and a red PR that nobody caused teaches people to
+      # ignore red PRs.
+      - name: Live feed contract (advisory)
+        continue-on-error: true
+        run: npx playwright test --grep @network

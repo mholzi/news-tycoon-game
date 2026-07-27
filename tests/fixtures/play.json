@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "count": 2,
+  "episodes": [
+    {
+      "slug": "the-advertiser-you-cannot-afford",
+      "title": "The advertiser you cannot afford to offend",
+      "url": "https://news-tycoon.vercel.app/blog/the-advertiser-you-cannot-afford/",
+      "year": 2015,
+      "place": "London",
+      "lever": "money",
+      "decision": {
+        "desk": "The next article in your own investigation of a bank's offshore accounts is ready. Six have already run. The bank is in the middle of a tax scandal, and it is also the largest advertiser the paper has.",
+        "voices": [
+          {
+            "who": "banking correspondent",
+            "says": "The reporting stands up and the series should carry on to the end it was commissioned for.",
+            "trust": "It is his beat, and six articles have already run without being challenged by anyone.",
+            "doubt": "He does not carry the revenue and has never had to, so the cost of being right is not his to weigh."
+          },
+          {
+            "who": "newspaper executive",
+            "says": "There is no legal objection, only a commercial one, and a commercial one does not have to be written down anywhere.",
+            "trust": "He is the one who knows what the advertising is worth and what its loss would do to the newsroom that pays for the reporting.",
+            "doubt": "He is describing a cost to the paper and presenting it as a judgement about the story."
+          }
+        ],
+        "unverifiable": "Whether there is any pressure at all. Nothing here produces an event: no injunction, no call killing an edition. Money makes an absence, and an absence has no date on it — so the case for stopping and the case for carrying on look identical from the inside.",
+        "print": {
+          "now": "The article runs, and the bank's agency has a conversation with your commercial director that nobody minutes.",
+          "later": "Column inches that used to be sold are not, and the budget that pays the reporters is smaller the next time it is set.",
+          "issues": 4
+        },
+        "hold": {
+          "now": "Nothing, and nothing looks wrong. Stories get cut, space is finite, lawyers are cautious. It is a normal day in a newsroom.",
+          "later": "Your chief political commentator resigns, publishes his reasons somewhere you do not control, and calls what the paper did a form of fraud on its readers.",
+          "issues": 11
+        }
+      }
+    },
+    {
+      "slug": "the-lobby-is-a-deal",
+      "title": "The lobby is a deal, and everyone signed it",
+      "url": "https://news-tycoon.vercel.app/blog/the-lobby-is-a-deal/",
+      "year": 1984,
+      "place": "London",
+      "lever": "access",
+      "decision": {
+        "desk": "The press secretary has briefed the lobby on the government's account of a decision. It is detailed, and it comes on the usual terms: you may use it, you may never say where it came from, and you may never say the briefing happened at all.",
+        "voices": [
+          {
+            "who": "government press secretary",
+            "says": "The government's account of the decision, in more detail than anyone outside the room will have before tomorrow.",
+            "trust": "He was in the room where it was taken, and the briefings are detailed and usually accurate.",
+            "doubt": "He is shaping the frame before anyone outside can contest it, and with no name attached there is no accountability for being wrong."
+          },
+          {
+            "who": "lobby correspondent",
+            "says": "The account holds up, and running it in the morning is worth more than running it three days later when everyone else has it too.",
+            "trust": "It is his beat, he has heard hundreds of these, and he can tell what is missing from one.",
+            "doubt": "If the terms are broken, the cost is paid by him first and by nobody else in the building, which is not a neutral place to advise from."
+          }
+        ],
+        "unverifiable": "Whether the account is true, because the only people who could confirm it are the people who handed it to you. And whether naming the briefing will cost you access, because access never leaves on a day you can point at.",
+        "print": {
+          "now": "Nothing. No one sues, no advertiser calls, and the afternoon passes exactly as it would have anyway.",
+          "later": "The next briefing is slightly less useful to you, and the one after that you hear about afterwards. You do not lose a fight, you lose your eyes, and by the time you notice, the story you needed them for has gone to someone else.",
+          "issues": 9
+        },
+        "hold": {
+          "now": "You run it in the morning, early and in context, ahead of every paper that was not in the room.",
+          "later": "A frame with no name on it has travelled because you carried it, and \"sources close to the minister\" is a sentence nobody can check — you included, the next time one of them turns out to have been wrong.",
+          "issues": 6
+        }
+      }
+    }
+  ]
+}
