@@ -243,3 +243,52 @@ test('the bill line clears once the issue that carried it has passed', async ({ 
   await page.locator('#next').click();
   await expect(page.locator('#ledger-note')).toHaveText('');
 });
+
+/**
+ * The drift test that actually exercises the machinery.
+ *
+ * The all-hold run above proves the loops agree when every pending item carries
+ * `lever: null` and no price is ever chosen — which is to say, when almost
+ * nothing happens. This one prints every story and takes a price at the first
+ * boundary, so bills land, access compounds into later weeks, and the chosen
+ * price multiplies a sale the pure path also has to get right.
+ */
+test('a printed campaign with a chosen price ends where the pure path says', async ({ page }) => {
+  const episodes = assertPlayFeed(twelve as PlayFeed).episodes.map(toPlayable);
+  const expected = runLedger(
+    episodes,
+    ['cheap', 'standard', 'standard', 'standard'],
+    Array.from({ length: 12 }, () => 'print' as const),
+  );
+
+  await serveFeed(page, twelve);
+  await page.goto('/?seed=1');
+  await page.locator('#price-cheap').click();
+
+  for (let guard = 0; guard < 80; guard += 1) {
+    if (await page.locator('#done').isVisible()) break;
+    if (await page.locator('#step-print').isVisible()) await page.locator('#do-print').click();
+    else if (await page.locator('#next').isVisible()) await page.locator('#next').click();
+    else if (await page.locator('#quiet-next').isVisible()) await page.locator('#quiet-next').click();
+    else await page.locator('#voices button').first().click();
+  }
+
+  await expect(page.locator('#done')).toBeVisible();
+  await expect(page.locator('#takings')).toHaveText(formatTakings(expected.takingsPence));
+  await expect(page.locator('#copies')).toHaveText(formatCopies(expected.copies));
+});
+
+test('an ignored menu still closes that decade to a later click', async ({ page }) => {
+  await serveFeed(page, twelve);
+  await page.goto('/?seed=1');
+
+  // Ignore the menu on issue 1, then move to issue 2 of the same decade.
+  await play(page, 'hold');
+  await page.locator('#next').click();
+  await expect(page.locator('#price-menu')).toBeHidden();
+
+  await page.locator('#price-cheap').dispatchEvent('click');
+
+  await expect(page.locator('#copies')).toHaveText('20,000');
+  await expect(page.locator('#price')).toHaveText('2p');
+});
