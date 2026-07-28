@@ -116,3 +116,55 @@ describe('toPlayable', () => {
     expect(playable.decision).toBeUndefined();
   });
 });
+
+/**
+ * The bound the site has always had and this side never checked.
+ *
+ * `consequenceSchema` in the site repo caps `issues` at 40, so no feed the site
+ * produces changes meaning here. What changes is what a feed from anywhere else
+ * can do: before this, a delay of 500 was accepted, and no campaign is long
+ * enough to ever pay it.
+ */
+describe('assertPlayFeed, on the delay bound', () => {
+  const withIssues = (value: unknown): PlayFeed => {
+    const feed = clone(fixture());
+    (feed.episodes[0].decision.print as { issues: unknown }).issues = value;
+    return feed;
+  };
+
+  it('accepts the maximum', () => {
+    expect(() => assertPlayFeed(withIssues(40))).not.toThrow();
+  });
+
+  it('accepts the minimum', () => {
+    expect(() => assertPlayFeed(withIssues(1))).not.toThrow();
+  });
+
+  it('refuses a delay above the maximum, saying what it was', () => {
+    const slug = fixture().episodes[0].slug;
+    expect(() => assertPlayFeed(withIssues(41))).toThrow(
+      new FeedError(`episode ${slug}: print has issues 41, above the maximum of 40`),
+    );
+  });
+
+  it('refuses a wildly out-of-range delay the same way', () => {
+    const slug = fixture().episodes[0].slug;
+    expect(() => assertPlayFeed(withIssues(500))).toThrow(
+      new FeedError(`episode ${slug}: print has issues 500, above the maximum of 40`),
+    );
+  });
+
+  it('still calls zero a wrong type rather than an out-of-range value', () => {
+    const slug = fixture().episodes[0].slug;
+    expect(() => assertPlayFeed(withIssues(0))).toThrow(
+      new FeedError(`episode ${slug}: print has the wrong type for issues`),
+    );
+  });
+
+  it('still refuses a non-integer', () => {
+    const slug = fixture().episodes[0].slug;
+    expect(() => assertPlayFeed(withIssues(3.5))).toThrow(
+      new FeedError(`episode ${slug}: print has the wrong type for issues`),
+    );
+  });
+});
