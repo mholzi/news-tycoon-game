@@ -1,0 +1,1302 @@
+{
+  "version": 1,
+  "count": 36,
+  "episodes": [
+    {
+      "slug": "fixture-1920-0",
+      "title": "Fixture episode 0, 1920",
+      "url": "https://example.invalid/blog/fixture-1920-0/",
+      "year": 1920,
+      "place": "Placeholder",
+      "lever": "access",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1920.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 4
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 3
+        }
+      }
+    },
+    {
+      "slug": "fixture-1923-1",
+      "title": "Fixture episode 1, 1923",
+      "url": "https://example.invalid/blog/fixture-1923-1/",
+      "year": 1923,
+      "place": "Placeholder",
+      "lever": "money",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1923.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 5
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 4
+        }
+      }
+    },
+    {
+      "slug": "fixture-1926-2",
+      "title": "Fixture episode 2, 1926",
+      "url": "https://example.invalid/blog/fixture-1926-2/",
+      "year": 1926,
+      "place": "Placeholder",
+      "lever": "law",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1926.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 6
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 5
+        }
+      }
+    },
+    {
+      "slug": "fixture-1930-3",
+      "title": "Fixture episode 3, 1930",
+      "url": "https://example.invalid/blog/fixture-1930-3/",
+      "year": 1930,
+      "place": "Placeholder",
+      "lever": "access",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1930.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 7
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 6
+        }
+      }
+    },
+    {
+      "slug": "fixture-1933-4",
+      "title": "Fixture episode 4, 1933",
+      "url": "https://example.invalid/blog/fixture-1933-4/",
+      "year": 1933,
+      "place": "Placeholder",
+      "lever": "money",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1933.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 8
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 3
+        }
+      }
+    },
+    {
+      "slug": "fixture-1936-5",
+      "title": "Fixture episode 5, 1936",
+      "url": "https://example.invalid/blog/fixture-1936-5/",
+      "year": 1936,
+      "place": "Placeholder",
+      "lever": "law",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1936.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 4
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 4
+        }
+      }
+    },
+    {
+      "slug": "fixture-1940-6",
+      "title": "Fixture episode 6, 1940",
+      "url": "https://example.invalid/blog/fixture-1940-6/",
+      "year": 1940,
+      "place": "Placeholder",
+      "lever": "access",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1940.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 5
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 5
+        }
+      }
+    },
+    {
+      "slug": "fixture-1943-7",
+      "title": "Fixture episode 7, 1943",
+      "url": "https://example.invalid/blog/fixture-1943-7/",
+      "year": 1943,
+      "place": "Placeholder",
+      "lever": "money",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1943.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 6
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 6
+        }
+      }
+    },
+    {
+      "slug": "fixture-1946-8",
+      "title": "Fixture episode 8, 1946",
+      "url": "https://example.invalid/blog/fixture-1946-8/",
+      "year": 1946,
+      "place": "Placeholder",
+      "lever": "law",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1946.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 7
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 3
+        }
+      }
+    },
+    {
+      "slug": "fixture-1950-9",
+      "title": "Fixture episode 9, 1950",
+      "url": "https://example.invalid/blog/fixture-1950-9/",
+      "year": 1950,
+      "place": "Placeholder",
+      "lever": "access",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1950.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 8
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 4
+        }
+      }
+    },
+    {
+      "slug": "fixture-1953-10",
+      "title": "Fixture episode 10, 1953",
+      "url": "https://example.invalid/blog/fixture-1953-10/",
+      "year": 1953,
+      "place": "Placeholder",
+      "lever": "money",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1953.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 4
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 5
+        }
+      }
+    },
+    {
+      "slug": "fixture-1956-11",
+      "title": "Fixture episode 11, 1956",
+      "url": "https://example.invalid/blog/fixture-1956-11/",
+      "year": 1956,
+      "place": "Placeholder",
+      "lever": "law",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1956.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 5
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 6
+        }
+      }
+    },
+    {
+      "slug": "fixture-1959-12",
+      "title": "Fixture episode 12, 1959",
+      "url": "https://example.invalid/blog/fixture-1959-12/",
+      "year": 1959,
+      "place": "Placeholder",
+      "lever": "access",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1959.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 6
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 3
+        }
+      }
+    },
+    {
+      "slug": "fixture-1960-13",
+      "title": "Fixture episode 13, 1960",
+      "url": "https://example.invalid/blog/fixture-1960-13/",
+      "year": 1960,
+      "place": "Placeholder",
+      "lever": "money",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1960.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 7
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 4
+        }
+      }
+    },
+    {
+      "slug": "fixture-1963-14",
+      "title": "Fixture episode 14, 1963",
+      "url": "https://example.invalid/blog/fixture-1963-14/",
+      "year": 1963,
+      "place": "Placeholder",
+      "lever": "law",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1963.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 8
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 5
+        }
+      }
+    },
+    {
+      "slug": "fixture-1966-15",
+      "title": "Fixture episode 15, 1966",
+      "url": "https://example.invalid/blog/fixture-1966-15/",
+      "year": 1966,
+      "place": "Placeholder",
+      "lever": "access",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1966.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 4
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 6
+        }
+      }
+    },
+    {
+      "slug": "fixture-1969-16",
+      "title": "Fixture episode 16, 1969",
+      "url": "https://example.invalid/blog/fixture-1969-16/",
+      "year": 1969,
+      "place": "Placeholder",
+      "lever": "money",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1969.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 5
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 3
+        }
+      }
+    },
+    {
+      "slug": "fixture-1970-17",
+      "title": "Fixture episode 17, 1970",
+      "url": "https://example.invalid/blog/fixture-1970-17/",
+      "year": 1970,
+      "place": "Placeholder",
+      "lever": "law",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1970.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 6
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 4
+        }
+      }
+    },
+    {
+      "slug": "fixture-1973-18",
+      "title": "Fixture episode 18, 1973",
+      "url": "https://example.invalid/blog/fixture-1973-18/",
+      "year": 1973,
+      "place": "Placeholder",
+      "lever": "access",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1973.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 7
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 5
+        }
+      }
+    },
+    {
+      "slug": "fixture-1976-19",
+      "title": "Fixture episode 19, 1976",
+      "url": "https://example.invalid/blog/fixture-1976-19/",
+      "year": 1976,
+      "place": "Placeholder",
+      "lever": "money",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1976.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 8
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 6
+        }
+      }
+    },
+    {
+      "slug": "fixture-1979-20",
+      "title": "Fixture episode 20, 1979",
+      "url": "https://example.invalid/blog/fixture-1979-20/",
+      "year": 1979,
+      "place": "Placeholder",
+      "lever": "law",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1979.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 4
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 3
+        }
+      }
+    },
+    {
+      "slug": "fixture-1980-21",
+      "title": "Fixture episode 21, 1980",
+      "url": "https://example.invalid/blog/fixture-1980-21/",
+      "year": 1980,
+      "place": "Placeholder",
+      "lever": "access",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1980.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 5
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 4
+        }
+      }
+    },
+    {
+      "slug": "fixture-1983-22",
+      "title": "Fixture episode 22, 1983",
+      "url": "https://example.invalid/blog/fixture-1983-22/",
+      "year": 1983,
+      "place": "Placeholder",
+      "lever": "money",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1983.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 6
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 5
+        }
+      }
+    },
+    {
+      "slug": "fixture-1986-23",
+      "title": "Fixture episode 23, 1986",
+      "url": "https://example.invalid/blog/fixture-1986-23/",
+      "year": 1986,
+      "place": "Placeholder",
+      "lever": "law",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1986.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 7
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 6
+        }
+      }
+    },
+    {
+      "slug": "fixture-1989-24",
+      "title": "Fixture episode 24, 1989",
+      "url": "https://example.invalid/blog/fixture-1989-24/",
+      "year": 1989,
+      "place": "Placeholder",
+      "lever": "access",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1989.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 8
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 3
+        }
+      }
+    },
+    {
+      "slug": "fixture-1990-25",
+      "title": "Fixture episode 25, 1990",
+      "url": "https://example.invalid/blog/fixture-1990-25/",
+      "year": 1990,
+      "place": "Placeholder",
+      "lever": "money",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1990.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 4
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 4
+        }
+      }
+    },
+    {
+      "slug": "fixture-1993-26",
+      "title": "Fixture episode 26, 1993",
+      "url": "https://example.invalid/blog/fixture-1993-26/",
+      "year": 1993,
+      "place": "Placeholder",
+      "lever": "law",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1993.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 5
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 5
+        }
+      }
+    },
+    {
+      "slug": "fixture-1996-27",
+      "title": "Fixture episode 27, 1996",
+      "url": "https://example.invalid/blog/fixture-1996-27/",
+      "year": 1996,
+      "place": "Placeholder",
+      "lever": "access",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1996.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 6
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 6
+        }
+      }
+    },
+    {
+      "slug": "fixture-1999-28",
+      "title": "Fixture episode 28, 1999",
+      "url": "https://example.invalid/blog/fixture-1999-28/",
+      "year": 1999,
+      "place": "Placeholder",
+      "lever": "money",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 1999.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 7
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 3
+        }
+      }
+    },
+    {
+      "slug": "fixture-2000-29",
+      "title": "Fixture episode 29, 2000",
+      "url": "https://example.invalid/blog/fixture-2000-29/",
+      "year": 2000,
+      "place": "Placeholder",
+      "lever": "law",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 2000.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 8
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 4
+        }
+      }
+    },
+    {
+      "slug": "fixture-2003-30",
+      "title": "Fixture episode 30, 2003",
+      "url": "https://example.invalid/blog/fixture-2003-30/",
+      "year": 2003,
+      "place": "Placeholder",
+      "lever": "access",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 2003.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 4
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 5
+        }
+      }
+    },
+    {
+      "slug": "fixture-2006-31",
+      "title": "Fixture episode 31, 2006",
+      "url": "https://example.invalid/blog/fixture-2006-31/",
+      "year": 2006,
+      "place": "Placeholder",
+      "lever": "money",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 2006.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 5
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 6
+        }
+      }
+    },
+    {
+      "slug": "fixture-2009-32",
+      "title": "Fixture episode 32, 2009",
+      "url": "https://example.invalid/blog/fixture-2009-32/",
+      "year": 2009,
+      "place": "Placeholder",
+      "lever": "law",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 2009.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 6
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 3
+        }
+      }
+    },
+    {
+      "slug": "fixture-2010-33",
+      "title": "Fixture episode 33, 2010",
+      "url": "https://example.invalid/blog/fixture-2010-33/",
+      "year": 2010,
+      "place": "Placeholder",
+      "lever": "access",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 2010.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 7
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 4
+        }
+      }
+    },
+    {
+      "slug": "fixture-2013-34",
+      "title": "Fixture episode 34, 2013",
+      "url": "https://example.invalid/blog/fixture-2013-34/",
+      "year": 2013,
+      "place": "Placeholder",
+      "lever": "money",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 2013.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 8
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 5
+        }
+      }
+    },
+    {
+      "slug": "fixture-2016-35",
+      "title": "Fixture episode 35, 2016",
+      "url": "https://example.invalid/blog/fixture-2016-35/",
+      "year": 2016,
+      "place": "Placeholder",
+      "lever": "law",
+      "decision": {
+        "desk": "A placeholder situation on the desk in 2016.",
+        "voices": [
+          {
+            "who": "first source",
+            "says": "A placeholder account of what happened.",
+            "trust": "A placeholder reason to believe it.",
+            "doubt": "A placeholder reason not to."
+          },
+          {
+            "who": "second source",
+            "says": "A different placeholder account.",
+            "trust": "A placeholder reason to believe this one.",
+            "doubt": "A placeholder reason not to."
+          }
+        ],
+        "unverifiable": "A placeholder thing you cannot settle before the deadline.",
+        "print": {
+          "now": "A placeholder immediate result of printing.",
+          "later": "A placeholder delayed cost of printing.",
+          "issues": 4
+        },
+        "hold": {
+          "now": "A placeholder immediate result of holding.",
+          "later": "A placeholder delayed cost of holding.",
+          "issues": 6
+        }
+      }
+    }
+  ]
+}
