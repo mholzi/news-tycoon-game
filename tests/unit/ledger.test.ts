@@ -103,7 +103,7 @@ describe('takings', () => {
 
   it('goes negative and stays there rather than clamping', () => {
     const ledger = fresh();
-    applyBill(ledger, 'law', 2010, new Set());
+    applyBill(ledger, 'law', 2010, new Set(), new Set());
     expect(ledger.takingsPence).toBeLessThan(0);
     expect(ledger.takingsPence).toBe(-Math.round(LAW_COST_MULTIPLE * eraIssuePence(2010, new Set())));
   });
@@ -112,22 +112,22 @@ describe('takings', () => {
 describe('a bill', () => {
   it('bleeds copies for access, permanently', () => {
     const ledger = fresh();
-    applyBill(ledger, 'access', 1930, new Set());
+    applyBill(ledger, 'access', 1930, new Set(), new Set());
     expect(ledger.copies).toBeCloseTo(START_COPIES * ACCESS_FACTOR, 6);
     expect(ledger.takingsPence).toBe(0);
   });
 
   it('compounds two access bills rather than adding them', () => {
     const ledger = fresh();
-    applyBill(ledger, 'access', 1930, new Set());
-    applyBill(ledger, 'access', 1930, new Set());
+    applyBill(ledger, 'access', 1930, new Set(), new Set());
+    applyBill(ledger, 'access', 1930, new Set(), new Set());
     expect(ledger.copies).toBeCloseTo(START_COPIES * ACCESS_FACTOR * ACCESS_FACTOR, 6);
     expect(ledger.copies).not.toBeCloseTo(START_COPIES * 0.92, 6);
   });
 
   it('charges money against the takings and leaves the sale alone', () => {
     const ledger = fresh();
-    applyBill(ledger, 'money', 1930, new Set());
+    applyBill(ledger, 'money', 1930, new Set(), new Set());
     expect(ledger.copies).toBe(START_COPIES);
     expect(ledger.takingsPence).toBe(
       -Math.round(MONEY_COST_MULTIPLE * eraIssuePence(1930, new Set())),
@@ -137,15 +137,15 @@ describe('a bill', () => {
   it('charges law harder than money in the same era', () => {
     const money = fresh();
     const law = fresh();
-    applyBill(money, 'money', 1980, new Set());
-    applyBill(law, 'law', 1980, new Set());
+    applyBill(money, 'money', 1980, new Set(), new Set());
+    applyBill(law, 'law', 1980, new Set(), new Set());
     expect(law.takingsPence).toBeLessThan(money.takingsPence);
   });
 
   it('costs the era it lands in, so a bled paper is not spared', () => {
     const ledger = fresh();
     ledger.copies = 1;
-    applyBill(ledger, 'money', 1930, new Set());
+    applyBill(ledger, 'money', 1930, new Set(), new Set());
     expect(ledger.takingsPence).toBe(
       -Math.round(MONEY_COST_MULTIPLE * eraIssuePence(1930, new Set())),
     );
@@ -153,14 +153,14 @@ describe('a bill', () => {
 
   it('does nothing at all for a held story', () => {
     const ledger = fresh();
-    applyBill(ledger, null, 2010, new Set());
+    applyBill(ledger, null, 2010, new Set(), new Set());
     expect(ledger).toEqual(fresh());
   });
 
   it('warns and moves nothing for an unknown lever', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const ledger = fresh();
-    applyBill(ledger, 'bribery', 1930, new Set());
+    applyBill(ledger, 'bribery', 1930, new Set(), new Set());
     expect(ledger).toEqual(fresh());
     expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();

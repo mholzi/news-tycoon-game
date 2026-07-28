@@ -149,17 +149,19 @@ function start(EPISODES: Playable[]): void {
     const due = pending.filter((p) => p.dueAt <= issue);
     pending = pending.filter((p) => p.dueAt > issue);
 
-    const landingDecade = index < EPISODES.length ? decadeOf(EPISODES[index].year) : lastDecade;
+    // Clamped rather than guarded. The earlier null check charged nothing on that
+    // path while the record loop below still printed the consequence, so a bill
+    // could appear in one account and vanish from the other. On an episode issue
+    // this is that episode's decade; on a quiet issue it is the last episode
+    // dealt. `runLedger` computes it the same way, so neither loop has a branch
+    // the other lacks.
+    const landingDecade = decadeOf(EPISODES[Math.min(index, EPISODES.length - 1)].year);
     const notes: string[] = [];
-    // One guard for both the charge and the line that claims it happened. Split
-    // apart, the note could announce a bill that `applyBill` never applied.
-    if (landingDecade !== null) {
-      for (const item of due) {
-        applyBill(ledger, item.lever, landingDecade, warned, warnedLevers);
-        // Access shows itself in the copies figure; only a cash bill needs a line.
-        if (item.lever === 'money' || item.lever === 'law') {
-          notes.push(`The bill for ${item.place} ${item.year} came out of the takings.`);
-        }
+    for (const item of due) {
+      applyBill(ledger, item.lever, landingDecade, warned, warnedLevers);
+      // Access shows itself in the copies figure; only a cash bill needs a line.
+      if (item.lever === 'money' || item.lever === 'law') {
+        notes.push(`The bill for ${item.place} ${item.year} came out of the takings.`);
       }
     }
     ledgerNote.textContent = notes.join(' ');
@@ -194,6 +196,11 @@ function start(EPISODES: Playable[]): void {
       labelPriceButtons(decade);
       renderLedger();
     } else {
+      // The decade's one choice is over, whether it was taken or ignored. Left
+      // false here, a click dispatched at the hidden menu on any later issue of
+      // the same decade would still apply a multiplier, landing on a ledger
+      // `runLedger` cannot reproduce because it reads one choice per decade.
+      pricedThisDecade = true;
       priceMenu.hidden = true;
     }
 

@@ -104,11 +104,24 @@ export function pricesFor(decade: number, warned: Set<number>): DecadePrices {
   // `startLedger` — before the first frame of a campaign.
   const usable = Number.isFinite(decade) ? decade : FIRST_DECADE;
   const clamped = Math.min(Math.max(usable, FIRST_DECADE), LAST_DECADE);
-  if (clamped !== decade && !warned.has(decade)) {
+  const row = PRICE_TABLE[clamped];
+
+  // Two different failures, both silent if only the clamp is checked. A decade
+  // outside the table clamps and moves. A decade INSIDE the range but missing a
+  // row — the hole a later table edit leaves behind — clamps to itself, so
+  // `clamped !== decade` is false and the fallback would hand back 1920 prices
+  // without a word. A 2040s campaign would then sell at 2p and be billed at
+  // 1920 rates, roughly 150x wrong in both directions.
+  if ((row === undefined || clamped !== decade) && !warned.has(decade)) {
     warned.add(decade);
-    console.warn('ledger:', `decade ${decade} is outside the price table, using ${clamped}`);
+    console.warn(
+      'ledger:',
+      row === undefined
+        ? `no price row for decade ${clamped}, using ${FIRST_DECADE}`
+        : `decade ${decade} is outside the price table, using ${clamped}`,
+    );
   }
-  return PRICE_TABLE[clamped] ?? PRICE_TABLE[FIRST_DECADE];
+  return row ?? PRICE_TABLE[FIRST_DECADE];
 }
 
 /** One issue's takings at the era's standard price, which is what a bill is measured in. */
@@ -161,7 +174,10 @@ export function applyBill(
   lever: string | null,
   landingDecade: number,
   warned: Set<number>,
-  warnedLevers: Set<string> = new Set(),
+  // Required, deliberately. A default `new Set()` would be a fresh set per call,
+  // which is not a dedupe at all — it would warn once per bill while reading as
+  // though it warned once per lever.
+  warnedLevers: Set<string>,
 ): void {
   if (lever === null) return;
 
@@ -236,16 +252,15 @@ export function runLedger(
   let prompts = 0;
 
   for (;;) {
-    // `lastDecade` is null only before the first episode is shown, and the first
-    // pass always has one. Handled rather than asserted, so this path and
-    // `main.ts`'s agree about what is reachable.
-    const currentDecade = index < episodes.length ? decadeOf(episodes[index].year) : lastDecade;
+    // Clamped rather than guarded: on an episode issue this is that episode's
+    // decade, and on a quiet issue it is the last episode dealt, which is the
+    // same value `lastDecade` held. Written this way there is no null case, so
+    // no branch here that `main.ts` could disagree with.
+    const currentDecade = decadeOf(episodes[Math.min(index, episodes.length - 1)].year);
     const due = pending.filter((p) => p.dueAt <= issue);
     pending = pending.filter((p) => p.dueAt > issue);
-    if (currentDecade !== null) {
-      for (const owed of due) {
-        applyBill(ledger, owed.lever, currentDecade, warned, warnedLevers);
-      }
+    for (const owed of due) {
+      applyBill(ledger, owed.lever, currentDecade, warned, warnedLevers);
     }
 
     if (index < episodes.length) {
