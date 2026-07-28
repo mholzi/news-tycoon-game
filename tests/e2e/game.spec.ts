@@ -61,6 +61,16 @@ test('the game fetches its archive over the network', async ({ page }) => {
   expect(called).toBe(true);
 });
 
+/**
+ * Play order is by year now, not by feed order.
+ *
+ * The dealer sorts a campaign chronologically, and on a pool too small to deal
+ * from it still sorts. The fixture happens to list 2015 before 1984, so these
+ * tests used to read the feed's order and now have to read the played order.
+ * The behaviour change is intended: the campaign runs from the 1920s forward.
+ */
+const played = fixture.episodes.slice().sort((a, b) => a.year - b.year);
+
 test('the decision is flattened, so the desk actually has something on it', async ({ page }) => {
   await serveFeed(page, fixture);
   await page.goto('/');
@@ -68,7 +78,7 @@ test('the decision is flattened, so the desk actually has something on it', asyn
   // The feed nests `decision`; the game reads `desk` at the top level. Remove
   // the spread in `toPlayable` and this is the test that goes red — the page
   // still builds and still renders, with every field empty.
-  await expect(page.locator('#desk')).toHaveText(fixture.episodes[0].decision.desk);
+  await expect(page.locator('#desk')).toHaveText(played[0].decision.desk);
 });
 
 test('a full run: two episodes printed, and both bills land in the record', async ({ page }) => {
@@ -78,19 +88,17 @@ test('a full run: two episodes printed, and both bills land in the record', asyn
 
   // Print both. Episode one is played at issue 1 and its bill falls due at
   // issue 1 + print.issues; episode two at issue 2, due at 2 + print.issues.
-  for (let i = 0; i < fixture.episodes.length; i += 1) {
+  for (let i = 0; i < played.length; i += 1) {
     await expect(page.locator('#issue-no')).toHaveText(`Issue ${i + 1}`);
     await page.locator('#voices button').first().click();
     await page.locator('#do-print').click();
-    await expect(page.locator('#result-now')).toHaveText(fixture.episodes[i].decision.print.now);
+    await expect(page.locator('#result-now')).toHaveText(played[i].decision.print.now);
     await page.locator('#next').click();
   }
 
   // The archive is out of episodes but the paper keeps coming out. Click
   // through the quiet issues until the last bill has arrived.
-  const lastDue = Math.max(
-    ...fixture.episodes.map((e, i) => i + 1 + e.decision.print.issues),
-  );
+  const lastDue = Math.max(...played.map((e, i) => i + 1 + e.decision.print.issues));
   for (let guard = 0; guard < lastDue + 5; guard += 1) {
     if (await page.locator('#done').isVisible()) break;
     await page.locator('#quiet-next').click();
