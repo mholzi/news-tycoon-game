@@ -52,6 +52,10 @@ A campaign is dealt from a seed, so `?seed=` makes one shareable and repeatable:
 
     https://news-tycoon-game.vercel.app/?seed=1984
 
+Not yet, in practice. The published feed carries two episodes, and below twelve
+`deal` takes the degraded path: the whole pool in date order, seed unread. Every
+seed gives the same two episodes until the pool is written.
+
 ## Running it
 
     npm ci
