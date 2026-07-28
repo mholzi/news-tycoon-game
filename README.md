@@ -40,6 +40,18 @@ built output.
 checking rather than a type assertion, because the feed lives on another origin
 and can change without this repository noticing.
 
+## Playing it
+
+[news-tycoon-game.vercel.app](https://news-tycoon-game.vercel.app/)
+
+Deployed separately from the site it reads. Two projects rather than one because
+the archive and the game have different reasons to change: the site rebuilds
+whenever an episode is written, and the game only when the code moves.
+
+A campaign is dealt from a seed, so `?seed=` makes one shareable and repeatable:
+
+    https://news-tycoon-game.vercel.app/?seed=1984
+
 ## Running it
 
     npm ci

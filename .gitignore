@@ -6,3 +6,4 @@ playwright-report/
 
 # Local-only analysis. Lives in the bot wiki, which has no remote.
 competitor-analysis.md
+.vercel
