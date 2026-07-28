@@ -4,11 +4,25 @@ import { loadEpisodes, type Playable } from './feed';
 import {
   deal,
   DealError,
+  decadeOf,
   newSeed,
   seedFromSearch,
   validatePool,
   type DealtCampaign,
 } from './deal';
+import {
+  accrue,
+  applyBill,
+  choosePrice,
+  enterDecade,
+  formatCopies,
+  formatPrice,
+  formatTakings,
+  pricesFor,
+  startLedger,
+  type Ledger,
+  type PriceChoice,
+} from './ledger';
 
 /**
  * The game loop, moved out of the site's `prototype.astro`.
@@ -54,30 +68,69 @@ function start(EPISODES: Playable[]): void {
   const doneBox = el('done');
   const doneText = el('done-text');
   const donePending = el('done-pending');
+  const copiesFigure = el('copies');
+  const priceFigure = el('price');
+  const takingsFigure = el('takings');
+  const ledgerNote = el('ledger-note');
+  const priceMenu = el('price-menu');
 
-  /** A consequence that has been incurred and is waiting for its issue. */
+  /**
+   * A consequence that has been incurred and is waiting for its issue.
+   *
+   * `lever` is null for a held story. That is the one field that decides whether
+   * the owner's account can see a decision at all, so it is set in exactly one
+   * place, in `decide`, and read in exactly one place, in `settle`.
+   *
+   * `place` and `year` belong to the episode that CAUSED the bill, not to the
+   * issue it lands in. By then that episode is several issues off the screen,
+   * which is the point of naming it.
+   */
   interface Pending {
     dueAt: number;
     text: string;
     from: string;
+    lever: string | null;
+    place: string;
+    year: number;
   }
 
   let index = 0;
   let issue = 1;
   let ran = 0;
   let pending: Pending[] = [];
+  let lastDecade: number | null = null;
+  let decidedThisIssue = false;
+  let pricedThisDecade = false;
+  const warned = new Set<number>();
+  const warnedLevers = new Set<string>();
+  let ledger: Ledger = startLedger(decadeOf(EPISODES[0].year), warned);
+
+  function renderLedger() {
+    copiesFigure.textContent = formatCopies(ledger.copies);
+    priceFigure.textContent = formatPrice(ledger.pricePence);
+    takingsFigure.textContent = formatTakings(ledger.takingsPence);
+  }
 
   function reset() {
     index = 0;
     issue = 1;
     ran = 0;
     pending = [];
+    lastDecade = null;
+    decidedThisIssue = false;
+    pricedThisDecade = false;
+    warned.clear();
+    warnedLevers.clear();
+    ledger = startLedger(decadeOf(EPISODES[0].year), warned);
     printed.textContent = '0';
+    ledgerNote.textContent = '';
+    priceMenu.hidden = true;
     record.replaceChildren();
     recordEmpty.hidden = false;
     doneBox.hidden = true;
     quietBox.hidden = true;
     issueBox.hidden = false;
+    renderLedger();
     show();
   }
 
@@ -86,13 +139,32 @@ function start(EPISODES: Playable[]): void {
    *
    * This is the whole argument in four lines: the entry that appears is the
    * one you earned several issues ago, and by now the choice that caused it is
-   * off the screen. It is added to the record and to nothing else — there is
-   * no total, because a total would be a price, and a price would let you
-   * trade this account against the other one.
+   * off the screen. It is added to the record, and — since the owner's account
+   * became a total — to the money as well, but only for a story that was
+   * printed. A held story carries `lever: null` and moves nothing here, so a
+   * week you held something reads on the left exactly like a week there was
+   * nothing to hold.
    */
   function settle() {
     const due = pending.filter((p) => p.dueAt <= issue);
     pending = pending.filter((p) => p.dueAt > issue);
+
+    const landingDecade = index < EPISODES.length ? decadeOf(EPISODES[index].year) : lastDecade;
+    const notes: string[] = [];
+    // One guard for both the charge and the line that claims it happened. Split
+    // apart, the note could announce a bill that `applyBill` never applied.
+    if (landingDecade !== null) {
+      for (const item of due) {
+        applyBill(ledger, item.lever, landingDecade, warned, warnedLevers);
+        // Access shows itself in the copies figure; only a cash bill needs a line.
+        if (item.lever === 'money' || item.lever === 'law') {
+          notes.push(`The bill for ${item.place} ${item.year} came out of the takings.`);
+        }
+      }
+    }
+    ledgerNote.textContent = notes.join(' ');
+    renderLedger();
+
     for (const item of due) {
       const li = document.createElement('li');
       const what = document.createElement('span');
@@ -108,6 +180,23 @@ function start(EPISODES: Playable[]): void {
 
   function show() {
     const episode = EPISODES[index];
+    const decade = decadeOf(episode.year);
+
+    // A new decade sets the standard price whether or not the player touches the
+    // menu, so ignoring it means the price of the decade you are now in and not
+    // one carried over from the last one.
+    decidedThisIssue = false;
+    if (decade !== lastDecade) {
+      enterDecade(ledger, decade, warned);
+      lastDecade = decade;
+      pricedThisDecade = false;
+      priceMenu.hidden = false;
+      labelPriceButtons(decade);
+      renderLedger();
+    } else {
+      priceMenu.hidden = true;
+    }
+
     issueNo.textContent = `Issue ${issue}`;
     issueWhere.textContent = `${episode.place} ${episode.year} · ${episode.lever}`;
     desk.textContent = episode.desk;
@@ -167,7 +256,18 @@ function start(EPISODES: Playable[]): void {
       dueAt: issue + consequence.issues,
       text: consequence.later,
       from: `${choice === 'print' ? 'Printed' : 'Held'} · ${episode.place} ${episode.year}`,
+      lever: choice === 'print' ? episode.lever : null,
+      place: episode.place,
+      year: episode.year,
     });
+
+    // The week's takings, once, now that the outcome is fixed. After this the
+    // price menu is closed for the issue: a choice arriving later would be
+    // rewriting a week that has already been sold.
+    accrue(ledger, choice === 'print');
+    decidedThisIssue = true;
+    priceMenu.hidden = true;
+    renderLedger();
 
     resultNow.textContent = consequence.now;
     resultWait.textContent =
@@ -201,6 +301,10 @@ function start(EPISODES: Playable[]): void {
       return;
     }
 
+    // No story on the desk, but the paper still comes out and still sells.
+    accrue(ledger, false);
+    renderLedger();
+
     if (pending.length > 0) {
       issueBox.hidden = true;
       quietBox.hidden = false;
@@ -213,17 +317,44 @@ function start(EPISODES: Playable[]): void {
     issueBox.hidden = true;
     quietBox.hidden = true;
     doneBox.hidden = false;
-    doneText.textContent = `You ran ${ran} of ${EPISODES.length}, and it took ${issue} issues for the last of it to come back. The count is everything the owner can see. The record is the rest of it, and there is no rate at which one converts into the other — that is the argument, not a missing feature.`;
+    doneText.textContent = `You ran ${ran} of ${EPISODES.length}, and it took ${issue} issues for the last of it to come back. The takings are everything the owner can see. The record is the rest of it, and there is still no rate at which one converts into the other — that is the argument, not a missing feature.`;
     donePending.textContent =
       'Every bill has now arrived. Notice that none of them landed in the issue that caused it.';
   }
 
+  /** The menu says what each price does, so nobody has to reason about a curve. */
+  function labelPriceButtons(decade: number) {
+    const prices = pricesFor(decade, warned);
+    el('price-cheap').textContent = `${prices.cheap}p — more readers`;
+    el('price-standard').textContent = `${prices.standard}p — as you were`;
+    el('price-dear').textContent = `${prices.dear}p — fewer readers`;
+  }
+
+  function pick(choice: PriceChoice) {
+    // Guarded rather than merely hidden. Two ways a late click could corrupt the
+    // ledger: after the week is sold it would rewrite banked takings, and a
+    // second pick in the same decade would apply the multiplier twice, producing
+    // a state `runLedger` cannot reproduce because it consumes exactly one
+    // choice per decade. Hiding the menu is presentation; this is the invariant.
+    if (decidedThisIssue || pricedThisDecade || lastDecade === null) return;
+    pricedThisDecade = true;
+    choosePrice(ledger, lastDecade, choice, warned);
+    priceMenu.hidden = true;
+    renderLedger();
+  }
+
+  el<HTMLButtonElement>('price-cheap').addEventListener('click', () => pick('cheap'));
+  el<HTMLButtonElement>('price-standard').addEventListener('click', () => pick('standard'));
+  el<HTMLButtonElement>('price-dear').addEventListener('click', () => pick('dear'));
   el<HTMLButtonElement>('do-print').addEventListener('click', () => decide('print'));
   el<HTMLButtonElement>('do-hold').addEventListener('click', () => decide('hold'));
   el<HTMLButtonElement>('next').addEventListener('click', next);
   el<HTMLButtonElement>('quiet-next').addEventListener('click', advance);
   el<HTMLButtonElement>('again').addEventListener('click', reset);
 
+  // The markup ships the three figures empty, so nothing can go stale against
+  // `START_COPIES` or the price table. This is where they first get a value.
+  renderLedger();
   show();
 }
 

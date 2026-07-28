@@ -48,13 +48,35 @@
         <div class="ledgers">
           <div class="ledger">
             <p class="ledger-label">The owner's account</p>
-            <p class="ledger-figure" id="printed">0</p>
-            <p class="meta">stories run</p>
+            <p class="ledger-figure" id="copies"></p>
+            <p class="meta">copies a week</p>
+            <p class="ledger-figure" id="price"></p>
+            <p class="meta">a copy</p>
+            <p class="ledger-figure" id="takings"></p>
+            <p class="meta">taken so far</p>
+            <p class="meta ledger-note" id="ledger-note"></p>
+            <!-- Kept, and kept exact: two Playwright tests read this node's text
+                 as the printed count. It is the smallest line here now, which is
+                 roughly what it is worth beside the money. -->
+            <p class="ledger-run"><span id="printed">0</span> stories run</p>
           </div>
           <div class="ledger other">
             <p class="ledger-label">The other account</p>
             <p class="meta" id="record-empty">Nothing has come back yet.</p>
             <ol class="record" id="record"></ol>
+          </div>
+        </div>
+
+        <!-- Deliberately not modal. The desk below stays live, so a player who
+             ignores this keeps the decade's standard price and loses nothing but
+             the choice. It is also what keeps the older end-to-end runs, which
+             never click a price, passing untouched. -->
+        <div class="issue price-menu" id="price-menu" hidden>
+          <p class="eyebrow">A new decade · what does the paper cost?</p>
+          <div class="choices">
+            <button type="button" class="cta" id="price-cheap"></button>
+            <button type="button" class="cta" id="price-standard"></button>
+            <button type="button" class="cta" id="price-dear"></button>
           </div>
         </div>
 
