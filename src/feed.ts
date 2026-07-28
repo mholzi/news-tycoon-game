@@ -66,6 +66,9 @@ export type Playable = Omit<FeedEpisode, 'decision' | 'url'> & Decision;
 /** The shape this build understands. A feed announcing anything else is refused. */
 export const SUPPORTED_VERSION = 1;
 
+/** Mirrors `consequenceSchema` in the site repo, which has always capped this. */
+export const MAX_ISSUES = 40;
+
 export const FEED_URL: string =
   import.meta.env?.VITE_FEED_URL ?? 'https://news-tycoon.vercel.app/play.json';
 
@@ -177,6 +180,16 @@ function assertConsequence(input: unknown, slug: string, branch: 'print' | 'hold
   if (!('issues' in input)) throw new FeedError(`episode ${slug}: ${branch} is missing issues`);
   if (typeof input.issues !== 'number' || !Number.isInteger(input.issues) || input.issues < 1) {
     throw new FeedError(`episode ${slug}: ${branch} has the wrong type for issues`);
+  }
+  // The site's schema has capped this at 40 since the field existed; this side
+  // never checked. A feed from anywhere else could hand the game a delay of 500,
+  // which no campaign is long enough to ever pay. Separate message from the one
+  // above on purpose: "wrong type" is untrue of an integer that is merely large,
+  // and the tests here assert exact strings.
+  if (input.issues > MAX_ISSUES) {
+    throw new FeedError(
+      `episode ${slug}: ${branch} has issues ${input.issues}, above the maximum of ${MAX_ISSUES}`,
+    );
   }
 }
 
