@@ -1,6 +1,14 @@
 import './tokens.css';
 import './game.css';
 import { loadEpisodes, type Playable } from './feed';
+import {
+  deal,
+  DealError,
+  newSeed,
+  seedFromSearch,
+  validatePool,
+  type DealtCampaign,
+} from './deal';
 
 /**
  * The game loop, moved out of the site's `prototype.astro`.
@@ -219,15 +227,61 @@ function start(EPISODES: Playable[]): void {
   show();
 }
 
+/**
+ * Fresh seeds tried before the player gets the error screen.
+ *
+ * The sweep in `tests/integration/deal-sweep.test.ts` deals for every one of
+ * 1000 seeds against the 36-episode pool, and the spec's floor is 900. Three
+ * independent draws at a 10% miss rate is one failed load in a thousand.
+ */
+const SEED_ATTEMPTS = 3;
+
+/**
+ * A campaign, retried past an unlucky seed.
+ *
+ * `deal` is deterministic per seed, so a seed that cannot satisfy the pacing
+ * rule cannot satisfy it on a second call either. A fresh seed can. Without
+ * this a player would meet the error screen on a pool that deals fine, purely
+ * because their first seed was one of the few that does not.
+ *
+ * A seed given in the URL is never retried: it was asked for by name, and
+ * silently playing a different campaign than the one requested would make a
+ * shared link mean nothing.
+ */
+function dealCampaign(pool: Playable[]): DealtCampaign {
+  const requested = seedFromSearch(window.location.search);
+  if (requested !== null) return deal(pool, requested);
+
+  let lastError: unknown;
+  for (let tries = 0; tries < SEED_ATTEMPTS; tries += 1) {
+    try {
+      return deal(pool, newSeed());
+    } catch (error) {
+      if (!(error instanceof DealError) || error.failure.code !== 'no-satisfying-deal') throw error;
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
 async function boot(): Promise<void> {
   try {
-    const episodes = await loadEpisodes();
-    if (episodes.length === 0) {
+    const pool = await loadEpisodes();
+    if (pool.length === 0) {
       showOnly(emptyBox);
       return;
     }
+
+    // Warnings for whoever is writing the pool, not for the player. They never
+    // stop a campaign: a pool of two episodes is under every threshold here and
+    // still plays, on the degraded path.
+    for (const issue of validatePool(pool)) {
+      console.warn('pool:', issue);
+    }
+
+    const campaign = dealCampaign(pool);
     showOnly(gameBox);
-    start(episodes);
+    start(campaign.episodes);
   } catch (error) {
     // The message is deliberately the same for every failure mode. A player
     // does not need to know whether it was a 500, a dead network, or a body

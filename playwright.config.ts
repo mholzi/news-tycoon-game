@@ -19,7 +19,17 @@ export default defineConfig({
   },
   projects: [{ name: 'desktop', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run preview',
+    /*
+     * Build first, always.
+     *
+     * `vite preview` serves whatever is in `dist/` and never builds it, so
+     * running the suite after a source change tested the *previous* build. It
+     * shows up as the strangest possible failure: unit tests green on the new
+     * code, end-to-end tests green on the old code, and a diff between them
+     * that nothing in the output explains. The build is a few seconds and it
+     * removes a whole category of false result.
+     */
+    command: 'npm run build && npm run preview',
     url: 'http://localhost:4319',
     /*
      * Never reuse whatever happens to be on the port.
