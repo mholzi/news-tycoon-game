@@ -121,6 +121,23 @@ describe('validatePool', () => {
     ]);
   });
 
+  /**
+   * The feed requires a slug to exist and stops there. Two episodes can carry
+   * the same one, and a save that names an episode by slug would then point at
+   * two of them.
+   */
+  it('reports a slug used by more than one episode', () => {
+    const pool = spread(12);
+    pool[4] = episode('twice', 1970, 5, 4);
+    pool[9] = episode('twice', 2010, 5, 4);
+
+    expect(validatePool(pool)).toEqual([{ code: 'duplicate-slug', slug: 'twice', count: 2 }]);
+  });
+
+  it('says nothing about slugs in a pool where every one is distinct', () => {
+    expect(validatePool(pool36()).filter((i) => i.code === 'duplicate-slug')).toEqual([]);
+  });
+
   it('says nothing about years in a pool whose years are all whole', () => {
     expect(validatePool(pool36()).filter((i) => i.code === 'invalid-year')).toEqual([]);
   });
@@ -165,6 +182,27 @@ describe('deal', () => {
       const years = deal(pool36(), `chrono-${n}`).episodes.map((e) => e.year);
       expect(years).toEqual(years.slice().sort((a, b) => a - b));
     }
+  });
+
+  /**
+   * By code point, not by locale. The bucket sort inside `pickSpread` decides
+   * which episodes a seed picks, so the comparator is part of the deal's
+   * identity, and `localeCompare` is implementation-defined. These four strings
+   * are the case where the two orders visibly disagree.
+   */
+  it('orders slugs by code point, which no runtime locale can change', () => {
+    const pool = [
+      episode('AB', 1950, 5, 4),
+      episode('ab', 1950, 5, 4),
+      episode('aB', 1950, 5, 4),
+      episode('a-b', 1950, 5, 4),
+    ];
+    const sorted = deal(pool, 'tie').episodes.map((e) => e.slug);
+
+    expect(sorted).toEqual(['AB', 'a-b', 'aB', 'ab']);
+    // The order localeCompare would have produced, kept here so the difference
+    // is a documented fact rather than a claim in a comment.
+    expect(sorted).not.toEqual(['a-b', 'ab', 'aB', 'AB']);
   });
 
   it('breaks a tie on the same year by slug, so the order is total', () => {
