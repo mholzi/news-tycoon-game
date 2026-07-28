@@ -89,9 +89,26 @@ export type PoolIssue =
   | { code: 'too-few-decades'; have: number; need: number }
   | { code: 'decade-dominates'; decade: number; have: number; max: number }
   | { code: 'undealable-episode'; slug: string; minDelay: number; max: number }
-  | { code: 'invalid-year'; slug: string; year: number };
+  | { code: 'invalid-year'; slug: string; year: number }
+  | { code: 'duplicate-slug'; slug: string; count: number };
 
 const decadeOf = (year: number): number => Math.floor(year / 10) * 10;
+
+/**
+ * Slug order by code point, deliberately not `localeCompare`.
+ *
+ * Slug order decides which episodes a seed picks, not just how they are
+ * displayed: `pickSpread` sorts each bucket before shuffling it. So this
+ * comparator is part of the deal's identity, and `localeCompare` is
+ * implementation-defined — its collation depends on the runtime's locale and on
+ * how much ICU data the engine was built with. Comparing by code point is the
+ * same everywhere, forever, which is what "the same seed deals the same
+ * campaign" actually requires.
+ *
+ * (Measured on Node 24 across en, de, sv and cs, real slugs sort identically
+ * either way. The point is the guarantee, not an observed break.)
+ */
+const bySlug = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
  * The largest delay an episode may carry and still be dealable somewhere.
@@ -121,6 +138,19 @@ export function validatePool(pool: readonly Playable[]): PoolIssue[] {
     if (!Number.isInteger(episode.year) || episode.year < 0) {
       issues.push({ code: 'invalid-year', slug: episode.slug, year: episode.year });
     }
+  }
+
+  // Nothing else checks this. `assertPlayFeed` requires a slug to be present and
+  // non-empty and stops there, so a feed can repeat one. Today that costs
+  // nothing — two episodes sharing a slug simply both play. It stops being free
+  // the moment a save refers to an episode by slug, which is what the campaign
+  // is re-derived from, and by then the bad pool is already published.
+  const slugCounts = new Map<string, number>();
+  for (const episode of pool) {
+    slugCounts.set(episode.slug, (slugCounts.get(episode.slug) ?? 0) + 1);
+  }
+  for (const [slug, count] of slugCounts) {
+    if (count > 1) issues.push({ code: 'duplicate-slug', slug, count });
   }
 
   if (pool.length < CAMPAIGN_LENGTH) {
@@ -164,7 +194,7 @@ export function validatePool(pool: readonly Playable[]): PoolIssue[] {
 function chronological(episodes: readonly Playable[]): Playable[] {
   return episodes
     .slice()
-    .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.slug.localeCompare(b.slug)));
+    .sort((a, b) => (a.year !== b.year ? a.year - b.year : bySlug(a.slug, b.slug)));
 }
 
 /**
@@ -239,7 +269,7 @@ function pickSpread(pool: readonly Playable[], rand: () => number): Playable[] |
   // the campaign, or the same seed would deal differently after a re-publish.
   const buckets = decades.map((decade) =>
     shuffled(
-      byDecade.get(decade)!.slice().sort((a, b) => a.slug.localeCompare(b.slug)),
+      byDecade.get(decade)!.slice().sort((a, b) => bySlug(a.slug, b.slug)),
       rand,
     ),
   );
