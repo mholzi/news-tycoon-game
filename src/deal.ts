@@ -39,6 +39,14 @@ export const MAX_ATTEMPTS = 32;
 /** Distinct decades a pool needs before it can call itself a century. */
 export const MIN_DECADES = 4;
 
+/**
+ * The levers the economy knows how to charge for.
+ *
+ * Declared here rather than in `ledger.ts` because `validatePool` is where a
+ * pool is judged, and the import would otherwise run backwards.
+ */
+export const LEVERS = ['access', 'money', 'law'] as const;
+
 /** Mirrors the site's `consequenceSchema` bound, and `assertConsequence`. */
 export const MAX_DELAY = 40;
 
@@ -90,9 +98,10 @@ export type PoolIssue =
   | { code: 'decade-dominates'; decade: number; have: number; max: number }
   | { code: 'undealable-episode'; slug: string; minDelay: number; max: number }
   | { code: 'invalid-year'; slug: string; year: number }
+  | { code: 'unknown-lever'; slug: string; lever: string }
   | { code: 'duplicate-slug'; slug: string; count: number };
 
-const decadeOf = (year: number): number => Math.floor(year / 10) * 10;
+export const decadeOf = (year: number): number => Math.floor(year / 10) * 10;
 
 /**
  * Slug order by code point, deliberately not `localeCompare`.
@@ -137,6 +146,16 @@ export function validatePool(pool: readonly Playable[]): PoolIssue[] {
   for (const episode of pool) {
     if (!Number.isInteger(episode.year) || episode.year < 0) {
       issues.push({ code: 'invalid-year', slug: episode.slug, year: episode.year });
+    }
+  }
+
+  // The economy reads `lever` and nothing validates it. `assertPlayFeed` accepts
+  // any non-empty string, so a feed that renames its levers turns every bill
+  // into a no-op and the game quietly stops arguing anything. Before the ledger
+  // existed this was cosmetic: the value was only printed in the eyebrow.
+  for (const episode of pool) {
+    if (!(LEVERS as readonly string[]).includes(episode.lever)) {
+      issues.push({ code: 'unknown-lever', slug: episode.slug, lever: episode.lever });
     }
   }
 
