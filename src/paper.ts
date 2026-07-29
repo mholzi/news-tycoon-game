@@ -15,6 +15,26 @@
  */
 
 import type { Playable } from './feed';
+import {
+  FOLLOW_TRIGGERS,
+  STORY_SHELF_DAYS,
+  STRINGER_PENCE,
+  TIP_CHECK_DAYS,
+  WIRE_PENCE_PER_DAY,
+  advertorialStory,
+  dayHasPlant,
+  dayHasTip,
+  followStory,
+  investigationStory,
+  plantedStory,
+  stringerStory,
+  tipIsTrue,
+  tipStory,
+  wireStory,
+  type Story,
+} from './sources';
+
+export type { Story, StorySource } from './sources';
 
 export interface Source {
   readonly id: string;
@@ -27,9 +47,15 @@ export interface Investigation {
 }
 
 export interface Bill {
-  readonly slug: string;
+  readonly id: string;
   readonly lever: string;
   readonly dueOn: number;
+}
+
+/** A reporter checking whether a tip stands up. */
+export interface Check {
+  readonly id: string;
+  readonly readyOn: number;
 }
 
 export interface LedgerLine {
@@ -47,8 +73,12 @@ export interface PaperState {
   sources: Source[];
   leads: string[];
   running: Investigation[];
-  available: string[];
-  published: string[];
+  checking: Check[];
+  available: Story[];
+  /** Stories, not ids: the used-set below has to read `source`. The advertorial
+   *  appears once per day it ran, so this counts publications. */
+  published: Story[];
+  subscribed: boolean;
   bills: Bill[];
   /** Newest first. */
   ledger: LedgerLine[];
@@ -56,10 +86,14 @@ export interface PaperState {
 }
 
 export type Action =
-  | { kind: 'publish'; slug: string }
+  | { kind: 'publish'; id: string }
   | { kind: 'cultivate'; sourceId: string }
   | { kind: 'hire' }
-  | { kind: 'fire' };
+  | { kind: 'fire' }
+  | { kind: 'subscribe' }
+  | { kind: 'unsubscribe' }
+  | { kind: 'buy-stringer' }
+  | { kind: 'check'; id: string };
 
 export interface StartOptions {
   reporters?: number;
@@ -178,8 +212,11 @@ export function startPaper(options: StartOptions = {}): PaperState {
     sources: STARTING_SOURCES.map((id) => ({ id, steps: 0 })),
     leads: [],
     running: [],
-    available: [],
+    checking: [],
+    // The advertorial is there from the first morning and never leaves.
+    available: [advertorialStory()],
     published: [],
+    subscribed: false,
     bills: [],
     ledger: [],
     over: false,
@@ -207,6 +244,7 @@ export function playDay(
     sources: state.sources.map((s) => ({ ...s })),
     leads: [...state.leads],
     running: [...state.running],
+    checking: [...state.checking],
     available: [...state.available],
     published: [...state.published],
     bills: [...state.bills],
@@ -229,14 +267,24 @@ export function playDay(
   next.cashPence -= next.reporters * WAGE_PENCE_PER_DAY;
   say('Wages', -next.reporters * WAGE_PENCE_PER_DAY);
 
+  // The subscription, taken whether or not it can be afforded. Step 10 decides
+  // what a negative balance means, exactly as wages already do; the paper never
+  // quietly unsubscribes itself.
+  if (next.subscribed) {
+    next.cashPence -= WIRE_PENCE_PER_DAY;
+    say('The wire', -WIRE_PENCE_PER_DAY);
+  }
+
   // 2 to 6. The plan, in the order the player built it.
   //
   // One pass, deliberately. Three passes by kind meant [work courts, let one go]
   // and [let one go, work courts] produced identical days, which is not what the
   // screen promises and not what anybody would expect from a list they wrote.
   let cultivatedToday = 0;
+  let boughtToday = false;
   const workedThisDay = new Set<string>();
-  let publishedToday: string | null = null;
+  const checkedToday = new Set<string>();
+  let publishedToday: Story | null = null;
 
   for (const action of actions) {
     switch (action.kind) {
@@ -259,13 +307,24 @@ export function playDay(
         // Free reporters go first. With nobody free the newest investigation is
         // cancelled and its lead returns to the front of the queue, so the work
         // is not lost, only the hand doing it.
-        if (next.reporters - next.running.length - cultivatedToday <= 0) {
-          let latest = 0;
-          for (let i = 1; i < next.running.length; i += 1) {
-            if (next.running[i].readyOn >= next.running[latest].readyOn) latest = i;
+        if (next.reporters - next.running.length - next.checking.length - cultivatedToday <= 0) {
+          if (next.running.length > 0) {
+            let latest = 0;
+            for (let i = 1; i < next.running.length; i += 1) {
+              if (next.running[i].readyOn >= next.running[latest].readyOn) latest = i;
+            }
+            const [cancelled] = next.running.splice(latest, 1);
+            next.leads.unshift(cancelled.slug);
+          } else if (next.checking.length > 0) {
+            // Only when there is no investigation to give up first. The tip stays
+            // on the desk, still unverified: the work is lost, not the story.
+            let latest = 0;
+            for (let i = 1; i < next.checking.length; i += 1) {
+              if (next.checking[i].readyOn >= next.checking[latest].readyOn) latest = i;
+            }
+            const [cancelled] = next.checking.splice(latest, 1);
+            say(`Called off the check on ${cancelled.id}.`);
           }
-          const [cancelled] = next.running.splice(latest, 1);
-          next.leads.unshift(cancelled.slug);
         }
         next.reporters -= 1;
         say('Let a reporter go');
@@ -282,7 +341,7 @@ export function playDay(
           say('That source has had its day.');
           break;
         }
-        if (next.reporters - next.running.length - cultivatedToday <= 0) {
+        if (next.reporters - next.running.length - next.checking.length - cultivatedToday <= 0) {
           say('Nobody spare to work it.');
           break;
         }
@@ -322,29 +381,92 @@ export function playDay(
         break;
       }
 
+      case 'subscribe': {
+        if (next.subscribed) {
+          say('Already on the wire.');
+          break;
+        }
+        if (next.cashPence < WIRE_PENCE_PER_DAY) {
+          say('Cannot afford it.');
+          break;
+        }
+        next.subscribed = true;
+        say('On the wire');
+        break;
+      }
+
+      case 'unsubscribe': {
+        if (!next.subscribed) {
+          say('Not on the wire.');
+          break;
+        }
+        next.subscribed = false;
+        say('Off the wire');
+        break;
+      }
+
+      case 'buy-stringer': {
+        if (boughtToday) {
+          say('One a day from the stringer.');
+          break;
+        }
+        if (next.cashPence < STRINGER_PENCE) {
+          say('Cannot afford it.');
+          break;
+        }
+        boughtToday = true;
+        next.cashPence -= STRINGER_PENCE;
+        say('Bought a story', -STRINGER_PENCE);
+        break;
+      }
+
+      case 'check': {
+        const tip = next.available.find((s) => s.id === action.id && s.unverified);
+        if (tip === undefined) {
+          say('Nothing to check.');
+          break;
+        }
+        if (checkedToday.has(action.id) || next.checking.some((c) => c.id === action.id)) {
+          say('Already looking into it.');
+          break;
+        }
+        if (next.reporters - next.running.length - next.checking.length - cultivatedToday <= 0) {
+          say('Nobody spare to check it.');
+          break;
+        }
+        checkedToday.add(action.id);
+        next.checking.push({ id: action.id, readyOn: next.day + TIP_CHECK_DAYS });
+        say(`Checking ${action.id}`);
+        break;
+      }
+
       case 'publish': {
         if (publishedToday !== null) {
           say('Only one story can lead.');
           break;
         }
-        const at = next.available.indexOf(action.slug);
+        const at = next.available.findIndex((s) => s.id === action.id);
         if (at === -1) {
           say('That story is not ready.');
           break;
         }
-        next.available.splice(at, 1);
-        next.published.push(action.slug);
-        publishedToday = action.slug;
+        const story = next.available[at];
+        // The advertorial is never consumed: it is an offer, not a scoop.
+        if (story.source !== 'advertorial') next.available.splice(at, 1);
+        next.published.push(story);
+        publishedToday = story;
 
-        const episode = bySlug.get(action.slug);
-        if (episode !== undefined) {
+        if (story.consequence !== null) {
           next.bills.push({
-            slug: action.slug,
-            lever: episode.lever,
-            dueOn: next.day + episode.print.issues,
+            id: story.id,
+            lever: story.consequence.lever,
+            dueOn: next.day + story.consequence.afterDays,
           });
         }
-        say(`Published ${action.slug}`);
+        if (story.paysPence !== 0) next.cashPence += story.paysPence;
+        // A tip published mid-check has nothing left to check.
+        next.checking = next.checking.filter((c) => c.id !== story.id);
+        say(`Published ${story.id}`, story.paysPence);
         break;
       }
     }
@@ -352,7 +474,7 @@ export function playDay(
 
   // Assignment. Nobody sits idle while a lead waits.
   for (;;) {
-    const free = next.reporters - next.running.length - cultivatedToday;
+    const free = next.reporters - next.running.length - next.checking.length - cultivatedToday;
     if (free <= 0 || next.leads.length === 0) break;
     const slug = next.leads.shift()!;
     next.running.push({ slug, readyOn: next.day + INVESTIGATION_DAYS });
@@ -362,11 +484,32 @@ export function playDay(
   const matured = next.running.filter((i) => i.readyOn <= next.day);
   next.running = next.running.filter((i) => i.readyOn > next.day);
   for (const investigation of matured) {
-    next.available.push(investigation.slug);
+    const episode = bySlug.get(investigation.slug);
+    if (episode !== undefined) {
+      next.available.push(investigationStory(episode, next.day, 1 + PUBLISH_GROWTH));
+    }
     say(`${investigation.slug} is ready`);
   }
 
-  next.copies *= publishedToday !== null ? 1 + PUBLISH_GROWTH : 1 - IDLE_DECAY;
+  // Checks resolve with them. A tip that stands up keeps its place and its age;
+  // one that does not is taken off the desk rather than left as a trap.
+  const checked = next.checking.filter((c) => c.readyOn <= next.day);
+  next.checking = next.checking.filter((c) => c.readyOn > next.day);
+  for (const check of checked) {
+    const at = next.available.findIndex((s) => s.id === check.id);
+    if (at === -1) continue;
+    if (tipIsTrue(check.id)) {
+      next.available[at] = { ...next.available[at], unverified: false };
+      say(`${check.id} stands up`);
+    } else {
+      next.available.splice(at, 1);
+      say('Nothing in it after all.');
+    }
+  }
+
+  // The story decides the day's circulation, not a single constant: an
+  // advertorial costs readers, a false tip costs more, wire copy barely holds.
+  next.copies *= publishedToday !== null ? publishedToday.growth : 1 - IDLE_DECAY;
 
   // 7. Clamp.
   next.copies = clamp(next.copies);
@@ -387,22 +530,22 @@ export function playDay(
     switch (bill.lever) {
       case 'access':
         next.copies *= ACCESS_FACTOR;
-        say(`The bill for ${bill.slug}`);
+        say(`The bill for ${bill.id}`);
         break;
       case 'money': {
         const cost = Math.round(MONEY_COST_MULTIPLE * billBasisPence());
         next.cashPence -= cost;
-        say(`The bill for ${bill.slug}`, -cost);
+        say(`The bill for ${bill.id}`, -cost);
         break;
       }
       case 'law': {
         const cost = Math.round(LAW_COST_MULTIPLE * billBasisPence());
         next.cashPence -= cost;
-        say(`The bill for ${bill.slug}`, -cost);
+        say(`The bill for ${bill.id}`, -cost);
         break;
       }
       default:
-        say(`No charge for ${bill.slug}.`);
+        say(`No charge for ${bill.id}.`);
     }
   }
   next.copies = clamp(next.copies);
@@ -411,6 +554,56 @@ export function playDay(
   if (next.cashPence < 0) {
     next.over = true;
     say('The paper has closed.');
+  }
+
+  // Arrivals, only if there is still a paper to put them in.
+  //
+  // They land at the end of the day into tomorrow's desk, because the caller
+  // passes today's actions in before any of this runs: a story generated here
+  // could not have been named by them.
+  if (!next.over) {
+    // Old news first, so a story cannot age out and arm a follow-up in the same
+    // breath. Investigations and the advertorial never age.
+    const kept: Story[] = [];
+    for (const story of next.available) {
+      const ages = story.source !== 'advertorial' && story.source !== 'investigation';
+      if (ages && next.day - story.offeredOn >= STORY_SHELF_DAYS) {
+        say(`${story.id} is old news.`);
+      } else {
+        kept.push(story);
+      }
+    }
+    next.available = kept;
+
+    // What sat unrun decides whether anybody follows it up, read before tonight's
+    // arrivals so a plant cannot arm the follow-up that shares its evening.
+    const armsFollow =
+      next.available.some((s) => FOLLOW_TRIGGERS.includes(s.source)) &&
+      !next.available.some((s) => s.source === 'follow');
+
+    if (next.subscribed) {
+      next.available = next.available.filter((s) => s.source !== 'wire');
+      next.available.push(wireStory(next.day));
+      say('A wire item');
+    } else {
+      next.available = next.available.filter((s) => s.source !== 'wire');
+    }
+    if (dayHasPlant(next.day)) {
+      next.available.push(plantedStory(next.day));
+      say('A story is planted');
+    }
+    if (boughtToday) {
+      next.available.push(stringerStory(next.day));
+      say('A story arrives from the stringer');
+    }
+    if (dayHasTip(next.day)) {
+      next.available.push(tipStory(next.day));
+      say('A tip arrives');
+    }
+    if (armsFollow) {
+      next.available.push(followStory(next.day));
+      say('Somebody else ran it');
+    }
   }
 
   return next;
@@ -426,8 +619,8 @@ function nextUnusedSlug(state: PaperState, pool: readonly Playable[]): string | 
   const used = new Set<string>([
     ...state.leads,
     ...state.running.map((i) => i.slug),
-    ...state.available,
-    ...state.published,
+    ...state.available.filter((s) => s.source === 'investigation').map((s) => s.id),
+    ...state.published.filter((s) => s.source === 'investigation').map((s) => s.id),
   ]);
   let lowest: string | null = null;
   for (const episode of pool) {

@@ -286,3 +286,16 @@ button.cta {
   font-size: var(--step--1);
   color: var(--ink-soft);
 }
+
+/* An unchecked tip gets a second control beside it. Deliberately plain: nothing
+   about the way it is drawn may hint at whether it stands up. */
+.article .check {
+  margin-top: var(--space-2);
+}
+
+.article,
+.source {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}

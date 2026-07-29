@@ -90,9 +90,11 @@ test('a story that matures waits on the desk until it is run', async ({ page }) 
   }
   for (let i = 0; i < 6; i += 1) await page.locator('#next-day').click();
 
-  await expect(page.locator('#available .article')).toHaveCount(1);
+  // The advertorial is permanent, so count only what was worked for.
+  const investigations = page.locator('#available .article[data-source="investigation"]');
+  await expect(investigations).toHaveCount(1);
   for (let i = 0; i < 3; i += 1) await page.locator('#next-day').click();
-  await expect(page.locator('#available .article')).toHaveCount(1);
+  await expect(investigations).toHaveCount(1);
 });
 
 test('a paper that cannot pay its wages closes', async ({ page }) => {
@@ -172,12 +174,15 @@ test('a story can be run, and the book records it', async ({ page }) => {
   for (let i = 0; i < 6; i += 1) await page.locator('#next-day').click();
 
   const before = await page.locator('#copies').textContent();
-  await page.locator('#available .publish').first().click();
+  await page.locator('#available .article[data-source="investigation"] .publish').click();
   await page.locator('#next-day').click();
 
-  await expect(page.locator('#available .article')).toHaveCount(0);
+  await expect(page.locator('#available .article[data-source="investigation"]')).toHaveCount(0);
   await expect(page.locator('#copies')).not.toHaveText(before ?? '');
-  await expect(page.locator('#ledger li').first()).toContainText('Sales');
+  // Not the first line any more: arrivals are the last thing a day does, so the
+  // newest entry is usually a story turning up rather than the money.
+  await expect(page.locator('#ledger li').filter({ hasText: 'Sales' }).first()).toBeVisible();
+  await expect(page.locator('#ledger li').filter({ hasText: 'Published' }).first()).toBeVisible();
 });
 
 test('a plan can be changed before it is printed', async ({ page }) => {
@@ -210,4 +215,50 @@ test('starting again puts the paper back where it began', async ({ page }) => {
   await expect(page.locator('#reporters')).toHaveText('3/3');
   await expect(page.locator('#day')).toHaveText('Day 1');
   await expect(page.locator('#desk')).toBeVisible();
+});
+
+test('the wire changes an ordinary day', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+
+  await expect(page.locator('#available .article[data-source="wire"]')).toHaveCount(0);
+  await page.locator('#wire').click();
+  await page.locator('#next-day').click();
+  await expect(page.locator('#available .article[data-source="wire"]')).toHaveCount(1);
+
+  // And it keeps costing, one item at a time.
+  await page.locator('#next-day').click();
+  await expect(page.locator('#available .article[data-source="wire"]')).toHaveCount(1);
+  await expect(page.locator('#ledger li').filter({ hasText: 'The wire' }).first()).toBeVisible();
+});
+
+test('a bought story arrives the next morning', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+
+  await page.locator('#buy-stringer').click();
+  await page.locator('#next-day').click();
+  await expect(page.locator('#available .article[data-source="stringer"]')).toHaveCount(1);
+});
+
+test('an unchecked tip gives nothing away', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+
+  // Walk to the first tip.
+  for (let i = 0; i < 12; i += 1) {
+    if ((await page.locator('#available .article[data-source="tip"]').count()) > 0) break;
+    await page.locator('#next-day').click();
+  }
+  const tip = page.locator('#available .article[data-source="tip"]').first();
+  await expect(tip).toHaveCount(1);
+
+  // The label says only that it is unchecked. Nothing about whether it stands up.
+  await expect(tip.locator('.voice-who')).toHaveText('unchecked');
+  await expect(tip.locator('.check')).toBeVisible();
+
+  await tip.locator('.check').click();
+  await expect(page.locator('#planned')).toContainText('check tip-');
+  await page.locator('#next-day').click();
+  await expect(page.locator('#reporters')).toHaveText('2/3');
 });

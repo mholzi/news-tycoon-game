@@ -180,9 +180,9 @@ describe('an investigation', () => {
     expect(paper.running[0].readyOn).toBe(startedOn + INVESTIGATION_DAYS);
 
     for (let i = 0; i < INVESTIGATION_DAYS - 1; i += 1) paper = step(paper);
-    expect(paper.available).toHaveLength(0);
+    expect(paper.available.filter((s) => s.source === 'investigation')).toHaveLength(0);
     paper = step(paper);
-    expect(paper.available).toEqual(['a-story']);
+    expect(paper.available.map((s) => s.id)).toContain('a-story');
   });
 
   it('frees its reporter again on maturity', () => {
@@ -209,23 +209,23 @@ describe('publishing', () => {
   it('grows circulation instead of shrinking it', () => {
     const ready = withStory();
     const before = ready.copies;
-    const after = step(ready, [{ kind: 'publish', slug: 'a-story' }]);
+    const after = step(ready, [{ kind: 'publish', id: 'a-story' }]);
     expect(after.copies).toBeCloseTo(before * (1 + PUBLISH_GROWTH), 6);
-    expect(after.published).toEqual(['a-story']);
+    expect(after.published.map((s) => s.id)).toEqual(['a-story']);
   });
 
   it('only one story can lead', () => {
     const ready = withStory();
     const after = step(ready, [
-      { kind: 'publish', slug: 'a-story' },
-      { kind: 'publish', slug: 'a-story' },
+      { kind: 'publish', id: 'a-story' },
+      { kind: 'publish', id: 'a-story' },
     ]);
     expect(line(after, 'Only one story can lead.')).toBeDefined();
     expect(after.published).toHaveLength(1);
   });
 
   it('refuses a story that is not ready', () => {
-    const after = step(startPaper(), [{ kind: 'publish', slug: 'a-story' }]);
+    const after = step(startPaper(), [{ kind: 'publish', id: 'a-story' }]);
     expect(line(after, 'That story is not ready.')).toBeDefined();
     expect(after.published).toHaveLength(0);
   });
@@ -233,7 +233,7 @@ describe('publishing', () => {
   it('leaves an unpublished story on the desk indefinitely', () => {
     let paper = withStory();
     for (let i = 0; i < 10; i += 1) paper = step(paper);
-    expect(paper.available).toEqual(['a-story']);
+    expect(paper.available.map((s) => s.id)).toContain('a-story');
   });
 });
 
@@ -245,7 +245,7 @@ describe('a bill', () => {
       paper = step(paper, [{ kind: 'cultivate', sourceId: 'council' }], pool);
     }
     for (let i = 0; i < INVESTIGATION_DAYS; i += 1) paper = step(paper, [], pool);
-    return step(paper, [{ kind: 'publish', slug: 'a-story' }], pool);
+    return step(paper, [{ kind: 'publish', id: 'a-story' }], pool);
   };
 
   it('lands days later, not on the day it was earned', () => {
@@ -289,7 +289,7 @@ describe('a bill', () => {
       paper = step(paper, [{ kind: 'cultivate', sourceId: 'council' }], pool);
     }
     for (let i = 0; i < INVESTIGATION_DAYS; i += 1) paper = step(paper, [], pool);
-    paper = step(paper, [{ kind: 'publish', slug: 'a-story' }], pool);
+    paper = step(paper, [{ kind: 'publish', id: 'a-story' }], pool);
     for (let i = 0; i < 3; i += 1) paper = step(paper, [], pool);
     expect(line(paper, 'No charge for a-story.')).toBeDefined();
   });

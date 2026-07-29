@@ -3,6 +3,7 @@ import './game.css';
 import { loadEpisodes, type Playable } from './feed';
 import { formatCopies, formatPrice, formatTakings } from './ledger';
 import { playDay, SOURCE_STEPS_TO_LEAD, startPaper, validatePool, type Action } from './paper';
+import { STRINGER_PENCE, WIRE_PENCE_PER_DAY } from './sources';
 
 /**
  * The screen, and nothing else.
@@ -31,6 +32,17 @@ function showOnly(section: HTMLElement | null): void {
   }
 }
 
+/** What the desk calls each kind of story. Never more than this about a tip. */
+const SOURCE_LABELS: Record<string, string> = {
+  investigation: 'your own',
+  wire: 'from the wire',
+  planted: 'somebody wants this out',
+  stringer: 'bought in',
+  tip: 'a tip',
+  advertorial: 'the advertiser',
+  follow: 'everyone has it',
+};
+
 function start(pool: Playable[]): void {
   const cash = el('cash');
   const copies = el('copies');
@@ -46,8 +58,11 @@ function start(pool: Playable[]): void {
   const desk = el('desk');
   const overBox = el('over');
   const overText = el('over-text');
+  const wire = el('wire');
+  const buyStringer = el('buy-stringer');
 
-  const titles = new Map(pool.map((e) => [e.slug, `${e.title} · ${e.place} ${e.year}`]));
+  /** Headlines for anything currently on the desk, so the plan can name them. */
+  let headlines = new Map<string, string>();
 
   let state = startPaper();
   let plan: Action[] = [];
@@ -55,13 +70,21 @@ function start(pool: Playable[]): void {
   function describe(action: Action): string {
     switch (action.kind) {
       case 'publish':
-        return `lead with ${titles.get(action.slug) ?? action.slug}`;
+        return `lead with ${headlines.get(action.id) ?? action.id}`;
       case 'cultivate':
         return `work ${action.sourceId}`;
       case 'hire':
         return 'hire a reporter';
       case 'fire':
         return 'let a reporter go';
+      case 'subscribe':
+        return 'take the wire';
+      case 'unsubscribe':
+        return 'drop the wire';
+      case 'buy-stringer':
+        return 'buy a story';
+      case 'check':
+        return `check ${action.id}`;
     }
   }
 
@@ -69,7 +92,14 @@ function start(pool: Playable[]): void {
     cash.textContent = formatTakings(state.cashPence);
     copies.textContent = formatCopies(state.copies);
     price.textContent = formatPrice(state.pricePence);
-    reporters.textContent = `${state.reporters - state.running.length}/${state.reporters}`;
+    // A reporter checking a tip is as busy as one on a story.
+    reporters.textContent = `${
+      state.reporters - state.running.length - state.checking.length
+    }/${state.reporters}`;
+    wire.textContent = state.subscribed
+      ? `Drop the wire (£${(WIRE_PENCE_PER_DAY / 100).toFixed(2)} a day)`
+      : `Take the wire (£${(WIRE_PENCE_PER_DAY / 100).toFixed(2)} a day)`;
+    buyStringer.textContent = `Buy a story (£${(STRINGER_PENCE / 100).toFixed(2)})`;
     day.textContent = `Day ${state.day}`;
 
     ledger.replaceChildren();
@@ -87,27 +117,46 @@ function start(pool: Playable[]): void {
     ledgerEmpty.hidden = state.ledger.length > 0;
 
     available.replaceChildren();
-    for (const slug of state.available) {
+    headlines = new Map(state.available.map((s) => [s.id, s.headline]));
+    for (const story of state.available) {
       const li = document.createElement('li');
       li.className = 'article';
+      li.dataset.source = story.source;
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'voice publish';
-      button.dataset.slug = slug;
+      button.dataset.id = story.id;
 
       const who = document.createElement('span');
       who.className = 'voice-who';
-      who.textContent = 'ready to run';
+      // Nothing here may betray whether an unchecked tip is true: not the
+      // growth, not the consequence, not the answer. Only what it is and who
+      // brought it.
+      who.textContent = story.unverified ? 'unchecked' : SOURCE_LABELS[story.source];
       const says = document.createElement('span');
       says.className = 'voice-says';
-      says.textContent = titles.get(slug) ?? slug;
+      says.textContent = story.headline;
 
       button.append(who, says);
       button.addEventListener('click', () => {
-        plan.push({ kind: 'publish', slug });
+        plan.push({ kind: 'publish', id: story.id });
         render();
       });
       li.append(button);
+
+      if (story.unverified) {
+        const check = document.createElement('button');
+        check.type = 'button';
+        check.className = 'cta check';
+        check.dataset.id = story.id;
+        check.textContent = 'Check it';
+        check.addEventListener('click', () => {
+          plan.push({ kind: 'check', id: story.id });
+          render();
+        });
+        li.append(check);
+      }
+
       available.append(li);
     }
     availableEmpty.hidden = state.available.length > 0;
@@ -158,6 +207,14 @@ function start(pool: Playable[]): void {
     render();
   });
 
+  el<HTMLButtonElement>('wire').addEventListener('click', () => {
+    plan.push({ kind: state.subscribed ? 'unsubscribe' : 'subscribe' });
+    render();
+  });
+  el<HTMLButtonElement>('buy-stringer').addEventListener('click', () => {
+    plan.push({ kind: 'buy-stringer' });
+    render();
+  });
   el<HTMLButtonElement>('hire').addEventListener('click', () => {
     plan.push({ kind: 'hire' });
     render();
