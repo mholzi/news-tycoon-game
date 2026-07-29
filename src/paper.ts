@@ -21,6 +21,7 @@ import {
   STORY_SHELF_DAYS,
   STRINGER_PENCE,
   TIP_CHECK_DAYS,
+  PUBLISH_RULES,
   WIRE_PENCE_PER_DAY,
   advertorialStory,
   dayHasPlant,
@@ -158,6 +159,13 @@ export const PUBLISH_GROWTH = 0.07;
  * crossing is 0.416949 — a first draft of the spec derived 0.75 from stringers
  * alone and was wrong. At 1/3 the all-planted supremum is 1.060904, a margin of
  * 0.009096. Any value in (0, 0.416949) would do; a third is not special.
+ *
+ * **1.07 is not a ceiling on an issue**, only on issues built from lesser copy.
+ * An issue of nothing but investigations reaches 1.107779, and it should: three
+ * of them in one paper is a real scoop. It is still the worse play — banking
+ * three into one issue is 1.091507 against two idle days, where running them a
+ * day apart compounds to 1.225043. The diminishing share is what makes holding
+ * stories back a mistake, which is the behaviour wanted.
  */
 export const INSIDE_SHARE = 1 / 3;
 
@@ -378,7 +386,9 @@ export function playDay(
   const issue: Story[] = [];
 
   /**
-   * Reporters with nothing on today. Read at four places, so it is written once.
+   * Reporters with nothing on today. Read at every gate that spends one, so it
+   * is written once — the count of those gates kept going stale, so it is not
+   * recorded here any more.
    *
    * A reporter checking a tip is as busy as one on a story, one who worked a
    * source this morning is busy for the rest of the day, and — since the issue
@@ -570,26 +580,23 @@ export function playDay(
           break;
         }
         const story = next.available[at];
+        const rule = PUBLISH_RULES[story.source];
 
-        // Agency copy is already written, so it costs no reporter and there is no
-        // limit on how much of it fills an issue. What it costs instead is that
-        // it is nobody's scoop: at 0.998 it holds a paper open and builds
-        // nothing, and in the inside it drags the issue down.
-        if (story.source === 'wire') {
-          if (!next.subscribed) {
-            say('The wire is not yours to run.');
-            break;
-          }
-        } else if (
-          // The advertiser buys one page, not the whole paper. Without this the
-          // one-publish guard's removal would let three reporters print the
-          // advertorial three times for three fees.
-          story.source === 'advertorial' &&
-          issue.some((s) => s.source === 'advertorial')
-        ) {
+        // Agency copy is the paper's only outside supply, so running it needs the
+        // subscription that buys it.
+        if (story.source === 'wire' && !next.subscribed) {
+          say('The wire is not yours to run.');
+          break;
+        }
+        // By id, not by source: two stringers are two different stories and both
+        // belong in one issue. This only ever fires for a standing offer, since
+        // a consumed story has already left the desk and fails the lookup above
+        // — and the advertorial is the only standing offer that is capped.
+        if (rule.oncePerIssue && issue.some((s) => s.id === story.id)) {
           say('The advertiser gets one page.');
           break;
-        } else {
+        }
+        if (rule.costsReporter) {
           if (free() <= 0) {
             say('Nobody spare to write it.');
             break;
@@ -597,12 +604,9 @@ export function playDay(
           spentToday += 1;
         }
 
-        // Neither the advertorial nor the wire is consumed: both are standing
-        // offers rather than scoops, and the wire may run more than once in one
-        // issue, so `published` carries repeated ids on purpose.
-        if (story.source !== 'advertorial' && story.source !== 'wire') {
-          next.available.splice(at, 1);
-        }
+        // A consumed story leaves the desk; a standing offer does not, which is
+        // why `published` carries repeated ids for agency copy on purpose.
+        if (rule.consumed) next.available.splice(at, 1);
         next.published.push(story);
         issue.push(story);
 

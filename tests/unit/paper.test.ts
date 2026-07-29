@@ -32,7 +32,18 @@ import {
   type Action,
   type PaperState,
 } from '../../src/paper';
-import { ADVERTORIAL_ID, type Story, type StorySource } from '../../src/sources';
+import {
+  ADVERTORIAL_GROWTH,
+  ADVERTORIAL_ID,
+  FOLLOW_GROWTH,
+  PLANT_GROWTH,
+  STRINGER_GROWTH,
+  TIP_FALSE_GROWTH,
+  TIP_TRUE_GROWTH,
+  WIRE_GROWTH,
+  type Story,
+  type StorySource,
+} from '../../src/sources';
 
 /** Only `slug`, `lever` and the print delay matter here; the prose makes it a real `Playable`. */
 function episode(slug: string, lever: string, issues = 3): Playable {
@@ -593,7 +604,18 @@ describe('an issue, not a slot', () => {
    * about copy that is worse than an investigation.
    */
   it('never lets lesser copy reach an investigation, however much of it there is', () => {
-    for (const growth of [1.04, 1.03, 0.998, 0.996, 0.975, 0.95]) {
+    // Read from the source constants, not hand-copied. The bound was derived
+    // from an incomplete list once already — stringers only, missing planted —
+    // and came out at 0.75 when the real crossing is 0.416949.
+    for (const growth of [
+      PLANT_GROWTH,
+      STRINGER_GROWTH,
+      TIP_TRUE_GROWTH,
+      TIP_FALSE_GROWTH,
+      WIRE_GROWTH,
+      FOLLOW_GROWTH,
+      ADVERTORIAL_GROWTH,
+    ]) {
       for (let n = 1; n <= 8; n += 1) {
         const g = issueGrowth([at(growth), ...Array(n).fill(at(growth))]);
         expect(g).toBeLessThan(1 + PUBLISH_GROWTH);
@@ -643,6 +665,64 @@ describe('an issue, not a slot', () => {
     expect(after.available.some((s) => s.id === 'advertorial')).toBe(true);
   });
 
+  it('makes a full issue and a queued fire cost an investigation', () => {
+    // A consequence of the shared budget, pinned so it is deliberate rather
+    // than a surprise. `fire` gives up the newest investigation when nobody is
+    // free, and writing now counts towards that. Before the shared budget it
+    // took three paid cultivates to reach zero; three ordinary publishes do it
+    // now, and the same click keeps the investigation or kills it depending on
+    // what else is in the plan. The ledger says so out loud, which is the whole
+    // reason that line was added.
+    let paper = startPaper({ reporters: 4 });
+    for (let i = 0; i < SOURCE_STEPS_TO_LEAD; i += 1) {
+      paper = step(paper, [{ kind: 'cultivate', sourceId: 'council' }]);
+    }
+    for (let i = 0; i < INVESTIGATION_DAYS; i += 1) {
+      paper = step(paper, [{ kind: 'cultivate', sourceId: 'courts' }]);
+    }
+    paper = step(paper, [{ kind: 'buy-stringer' }]);
+    const ready = paper.available.filter((s: Story) => s.source === 'investigation');
+    const stringer = paper.available.find((s: Story) => s.source === 'stringer')!;
+    expect(paper.running).toHaveLength(1);
+    expect(ready).toHaveLength(1);
+    // The one that gets given up is the one still being worked on, not the one
+    // already on the desk.
+    const inFlight = paper.running[0].slug;
+
+    // The fire alone leaves the investigation alone.
+    expect(step(paper, [{ kind: 'fire' }]).running).toHaveLength(1);
+
+    // The same fire, after an issue that spent every spare hand, gives it up.
+    const full = step(paper, [
+      { kind: 'publish', id: ready[0].id },
+      { kind: 'publish', id: stringer.id },
+      { kind: 'publish', id: ADVERTORIAL_ID },
+      { kind: 'fire' },
+    ]);
+    expect(full.running).toHaveLength(0);
+    expect(full.leads).toHaveLength(1);
+    expect(line(full, `Called off the investigation into ${inFlight}.`)).toBeDefined();
+  });
+
+  it('charges nothing for the advertorial it refuses', () => {
+    // The refusal happens before the reporter is spent, so the hand is still
+    // there for other work. The screen restated this rule instead of reading it
+    // and immediately disagreed — it charged for the refused page and greyed
+    // out a source the rules would have let you work.
+    const after = step(startPaper(), [
+      { kind: 'publish', id: 'advertorial' },
+      { kind: 'publish', id: 'advertorial' },
+      ...STARTING_SOURCES.slice(0, 2).map(
+        (sourceId) => ({ kind: 'cultivate', sourceId }) as Action,
+      ),
+    ]);
+    expect(line(after, 'The advertiser gets one page.')).toBeDefined();
+    // Three reporters: one wrote the advertorial, two worked sources. Nobody
+    // was turned away.
+    expect(line(after, 'Nobody spare to work it.')).toBeUndefined();
+    expect(after.sources.filter((s) => s.steps > 0)).toHaveLength(2);
+  });
+
   it('lets the plan order decide what leads', () => {
     // A matured investigation and a bought story on the same desk, with enough
     // hands to run both, so only the order can explain the difference.
@@ -661,8 +741,14 @@ describe('an issue, not a slot', () => {
         { kind: 'publish', id: second },
       ]).copies;
 
-    // An investigation leads at 1.07 and a stringer at 1.03, so the order shows.
-    expect(led('a-story', stringer.id)).not.toBeCloseTo(led(stringer.id, 'a-story'), 6);
+    // Directional, not merely different: an implementation where the LAST
+    // publish leads would satisfy "these two are not equal" just as well.
+    // Investigation leading is 1.07 × (1 + 0.03/3) = 1.0807; stringer leading is
+    // 1.03 × (1 + 0.07/3) = 1.054033. Both derived by hand from the formula.
+    const before = paper.copies;
+    expect(led('a-story', stringer.id)).toBeGreaterThan(led(stringer.id, 'a-story'));
+    expect(led('a-story', stringer.id) / before).toBeCloseTo(1.0807, 6);
+    expect(led(stringer.id, 'a-story') / before).toBeCloseTo(1.054033, 6);
   });
 });
 
@@ -696,12 +782,24 @@ describe('agency copy', () => {
   });
 
   it('cannot be run by a paper that is not on the wire', () => {
-    // Reachable only by construction: the desk is only ever given a wire item
-    // while the subscription is live.
     const paper = subscribed();
     const wire = paper.available.find((s) => s.source === 'wire')!;
     const off: PaperState = { ...paper, subscribed: false };
     const after = step(off, [{ kind: 'publish', id: wire.id }]);
+    expect(line(after, 'The wire is not yours to run.')).toBeDefined();
+    expect(after.published).toHaveLength(0);
+  });
+
+  it('is refused when the same day drops the subscription before running it', () => {
+    // Reachable in play, not only by construction: yesterday's wire item is on
+    // the desk this morning, and the plan can drop the wire before it runs.
+    // Actions execute in plan order, so `subscribed` is already false by then.
+    const paper = subscribed();
+    const wire = paper.available.find((s) => s.source === 'wire')!;
+    const after = step(paper, [
+      { kind: 'unsubscribe' },
+      { kind: 'publish', id: wire.id },
+    ]);
     expect(line(after, 'The wire is not yours to run.')).toBeDefined();
     expect(after.published).toHaveLength(0);
   });

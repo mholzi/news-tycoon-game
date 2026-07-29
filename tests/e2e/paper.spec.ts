@@ -251,6 +251,26 @@ test('the free-reporter figure counts what the rules will accept', async ({ page
   await expect(page.locator('#reporters')).toHaveText('1/3');
 });
 
+test('queueing one story twice costs one reporter, not two', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+
+  // The publish button appends on every tap and nothing dedupes it, so this is
+  // one misclick away. `playDay` runs the story once and refuses the repeat for
+  // nothing; the screen has to agree, or it locks out work the rules allow.
+  await expect(page.locator('#reporters')).toHaveText('3/3');
+  const advertorial = page.locator('#available .article[data-source="advertorial"] .publish');
+  await advertorial.click();
+  await expect(page.locator('#reporters')).toHaveText('2/3');
+
+  await advertorial.click();
+  await advertorial.click();
+  await expect(page.locator('#tomorrow .tomorrow-slot')).toHaveCount(3);
+  // Three slots queued, one reporter spent: the advertiser gets one page.
+  await expect(page.locator('#reporters')).toHaveText('2/3');
+  await expect(page.locator('#tomorrow-slots')).toHaveText('2');
+});
+
 test('an issue is built as a lead and an inside, and can be taken apart again', async ({ page }) => {
   await serveFeed(page);
   await page.goto('/');

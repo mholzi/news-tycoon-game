@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { assertPlayFeed, toPlayable, type PlayFeed, type Playable } from '../../src/feed';
 import { CALIBRATION_DAYS, playPolicy, type PolicyUses } from '../../src/policy';
+import type { PaperState } from '../../src/paper';
 import {
   COPIES_CEILING,
   COPIES_FLOOR,
@@ -172,27 +173,49 @@ describe('the other six sources', () => {
     expect(mixed.cashPence).toBe(-3_287);
   });
 
-  it('gains almost nothing from an inside, because there is never a hand to fill it', () => {
-    // The finding this feature was built to test, recorded rather than tuned
-    // away. `multiStory` lets a policy fill the inside; at the only staffing
-    // that survives anything, it fills it on 20% of days and never with more
-    // than one story — so 41 days become 41 days and one extra story runs.
+  /** Days whose issue held more than one story, read off the ledger. */
+  const multiStoryDays = (state: PaperState): number => {
+    const perDay = new Map<number, number>();
+    for (const entry of state.ledger) {
+      if (entry.text.startsWith('Published ')) {
+        perDay.set(entry.day, (perDay.get(entry.day) ?? 0) + 1);
+      }
+    }
+    return [...perDay.values()].filter((n) => n > 1).length;
+  };
+
+  it('almost never gets to fill the inside, because no hand is ever free', () => {
+    // The finding this feature was built to test, measured rather than tuned
+    // away — and measured on the thing the name claims, not on an aggregate.
+    // A first version of this test counted days with *capacity* and reported
+    // 20%; capacity is not a fill, and the desk rarely holds a second story
+    // worth running even when a reporter is free.
     const every = { wire: true, stringer: true, advertorial: true, checkTips: true, unbidden: true };
     const careful = play(1, 3, every);
     const multi = play(1, 3, { ...every, multiStory: true });
 
+    expect(multiStoryDays(careful)).toBe(0);
+    expect(multiStoryDays(multi)).toBe(1);
     expect(multi.day).toBe(careful.day);
     expect(multi.published.length).toBe(careful.published.length + 1);
-    expect(multi.over).toBe(true);
     expect(Math.round(multi.copies)).toBe(31_004);
     expect(multi.cashPence).toBe(-4_345);
   });
 
-  it('leaves a bigger newsroom room for an inside it cannot pay for', () => {
-    // The vice: capacity for an inside rises with headcount and survival falls
-    // faster. Six reporters can fill an issue every single day and are broke
-    // inside a fortnight.
-    const every = { wire: true, stringer: true, advertorial: true, checkTips: true, unbidden: true, multiStory: true };
+  it('never fills the inside at all once the newsroom is big enough to afford one', () => {
+    // The vice, stated as the measurement rather than as a story about it: more
+    // reporters would mean more capacity, but they die too soon for a second
+    // runnable story to reach the desk. Four and six reporters fill the inside
+    // on zero days, so `multiStory` is inert for them — bit-identical runs.
+    const every = { wire: true, stringer: true, advertorial: true, checkTips: true, unbidden: true };
+    for (const reporters of [4, 6]) {
+      const off = play(1, reporters, every);
+      const on = play(1, reporters, { ...every, multiStory: true });
+      expect(multiStoryDays(on)).toBe(0);
+      expect(on.day).toBe(off.day);
+      expect(on.published.length).toBe(off.published.length);
+    }
+    // And they last nowhere near as long as the three-reporter paper.
     expect(play(1, 3, every).day).toBeGreaterThan(play(1, 4, every).day);
     expect(play(1, 4, every).day).toBeGreaterThan(play(1, 6, every).day);
   });
@@ -200,6 +223,12 @@ describe('the other six sources', () => {
   it('leaves the existing economy exactly where it was', () => {
     // Criterion 13. Plants and tips still arrive under a flags-false policy;
     // what changed is that such a policy does not publish them.
+    //
+    // The load-bearing line here is `play(1)`, not `play(0)`. `play(0)` never
+    // publishes anything at all, so it exercises none of the publish path and
+    // proves nothing about writing costing a reporter. `play(1)` does: it runs
+    // at zero headroom on nearly every one of its 36 publish days, so any
+    // further leak out of the shared budget would move these numbers.
     expect(play(0).day).toBe(112);
     expect(play(1).published).toHaveLength(36);
     expect(play(1).cashPence).toBe(4_520_688);
