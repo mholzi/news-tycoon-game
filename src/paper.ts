@@ -229,81 +229,128 @@ export function playDay(
   next.cashPence -= next.reporters * WAGE_PENCE_PER_DAY;
   say('Wages', -next.reporters * WAGE_PENCE_PER_DAY);
 
-  // 2. Hire and fire, in the order they were asked for.
-  for (const action of actions) {
-    if (action.kind === 'hire') {
-      if (next.cashPence < HIRE_COST_PENCE) {
-        say('Cannot afford the wage.');
-        continue;
-      }
-      next.cashPence -= HIRE_COST_PENCE;
-      next.reporters += 1;
-      say('Hired a reporter', -HIRE_COST_PENCE);
-    } else if (action.kind === 'fire') {
-      if (next.reporters <= 1) {
-        say('Somebody has to write it.');
-        continue;
-      }
-      // Free reporters go first. With nobody free, the newest investigation is
-      // cancelled and its lead goes back to the front of the queue, so the work
-      // is not lost, only the hand doing it.
-      const free = next.reporters - next.running.length;
-      if (free <= 0) {
-        let latest = 0;
-        for (let i = 1; i < next.running.length; i += 1) {
-          if (next.running[i].readyOn >= next.running[latest].readyOn) latest = i;
-        }
-        const [cancelled] = next.running.splice(latest, 1);
-        next.leads.unshift(cancelled.slug);
-      }
-      next.reporters -= 1;
-      say('Let a reporter go');
-    }
-  }
-
-  // 3. Cultivation. Each accepted one occupies a reporter for the day.
+  // 2 to 6. The plan, in the order the player built it.
+  //
+  // One pass, deliberately. Three passes by kind meant [work courts, let one go]
+  // and [let one go, work courts] produced identical days, which is not what the
+  // screen promises and not what anybody would expect from a list they wrote.
   let cultivatedToday = 0;
   const workedThisDay = new Set<string>();
+  let publishedToday: string | null = null;
+
   for (const action of actions) {
-    if (action.kind !== 'cultivate') continue;
+    switch (action.kind) {
+      case 'hire': {
+        if (next.cashPence < HIRE_COST_PENCE) {
+          say('Cannot afford the wage.');
+          break;
+        }
+        next.cashPence -= HIRE_COST_PENCE;
+        next.reporters += 1;
+        say('Hired a reporter', -HIRE_COST_PENCE);
+        break;
+      }
 
-    const source = next.sources.find((s) => s.id === action.sourceId);
-    if (source === undefined) {
-      say('No such source.');
-      continue;
-    }
-    if (workedThisDay.has(source.id)) {
-      say('That source has had its day.');
-      continue;
-    }
-    if (next.reporters - next.running.length - cultivatedToday <= 0) {
-      say('Nobody spare to work it.');
-      continue;
-    }
-    if (next.cashPence < SOURCE_STEP_PENCE) {
-      say('Cannot afford it.');
-      continue;
-    }
+      case 'fire': {
+        if (next.reporters <= 1) {
+          say('Somebody has to write it.');
+          break;
+        }
+        // Free reporters go first. With nobody free the newest investigation is
+        // cancelled and its lead returns to the front of the queue, so the work
+        // is not lost, only the hand doing it.
+        if (next.reporters - next.running.length - cultivatedToday <= 0) {
+          let latest = 0;
+          for (let i = 1; i < next.running.length; i += 1) {
+            if (next.running[i].readyOn >= next.running[latest].readyOn) latest = i;
+          }
+          const [cancelled] = next.running.splice(latest, 1);
+          next.leads.unshift(cancelled.slug);
+        }
+        next.reporters -= 1;
+        say('Let a reporter go');
+        break;
+      }
 
-    workedThisDay.add(source.id);
-    cultivatedToday += 1;
-    next.cashPence -= SOURCE_STEP_PENCE;
-    source.steps += 1;
-    say(`Cultivated ${source.id}`, -SOURCE_STEP_PENCE);
+      case 'cultivate': {
+        const source = next.sources.find((s) => s.id === action.sourceId);
+        if (source === undefined) {
+          say('No such source.');
+          break;
+        }
+        if (workedThisDay.has(source.id)) {
+          say('That source has had its day.');
+          break;
+        }
+        if (next.reporters - next.running.length - cultivatedToday <= 0) {
+          say('Nobody spare to work it.');
+          break;
+        }
+        if (next.cashPence < SOURCE_STEP_PENCE) {
+          say('Cannot afford it.');
+          break;
+        }
+        // A source already at the threshold with nothing left in the archive
+        // cannot be worked. Charging for it was the old behaviour and it was
+        // indefensible: the player paid a reporter's day for a counter that
+        // could not move and a lead that could not exist.
+        if (source.steps >= SOURCE_STEPS_TO_LEAD && nextUnusedSlug(next, pool) === null) {
+          say('No story in it.');
+          break;
+        }
 
-    if (source.steps >= SOURCE_STEPS_TO_LEAD) {
-      source.steps = 0;
-      const slug = nextUnusedSlug(next, pool);
-      if (slug === null) {
-        say('No story in it.');
-      } else {
-        next.leads.push(slug);
-        say(`A lead from ${source.id}`);
+        workedThisDay.add(source.id);
+        cultivatedToday += 1;
+        next.cashPence -= SOURCE_STEP_PENCE;
+        source.steps += 1;
+        say(`Cultivated ${source.id}`, -SOURCE_STEP_PENCE);
+
+        if (source.steps >= SOURCE_STEPS_TO_LEAD) {
+          const slug = nextUnusedSlug(next, pool);
+          if (slug === null) {
+            // Deliberately does NOT reset the steps. Resetting first sold the
+            // player progress the archive cannot deliver: the counter cycled 0
+            // to 4 for ever while every cycle charged four days of work and
+            // produced nothing. Left at the threshold, the source is visibly stuck.
+            say('No story in it.');
+          } else {
+            source.steps = 0;
+            next.leads.push(slug);
+            say(`A lead from ${source.id}`);
+          }
+        }
+        break;
+      }
+
+      case 'publish': {
+        if (publishedToday !== null) {
+          say('Only one story can lead.');
+          break;
+        }
+        const at = next.available.indexOf(action.slug);
+        if (at === -1) {
+          say('That story is not ready.');
+          break;
+        }
+        next.available.splice(at, 1);
+        next.published.push(action.slug);
+        publishedToday = action.slug;
+
+        const episode = bySlug.get(action.slug);
+        if (episode !== undefined) {
+          next.bills.push({
+            slug: action.slug,
+            lever: episode.lever,
+            dueOn: next.day + episode.print.issues,
+          });
+        }
+        say(`Published ${action.slug}`);
+        break;
       }
     }
   }
 
-  // 4. Assignment. Nobody sits idle while a lead waits.
+  // Assignment. Nobody sits idle while a lead waits.
   for (;;) {
     const free = next.reporters - next.running.length - cultivatedToday;
     if (free <= 0 || next.leads.length === 0) break;
@@ -311,46 +358,12 @@ export function playDay(
     next.running.push({ slug, readyOn: next.day + INVESTIGATION_DAYS });
   }
 
-  // 5. Maturity.
-  const matured = next.running.filter((i) => i.readyOn === next.day);
-  next.running = next.running.filter((i) => i.readyOn !== next.day);
+  // Maturity.
+  const matured = next.running.filter((i) => i.readyOn <= next.day);
+  next.running = next.running.filter((i) => i.readyOn > next.day);
   for (const investigation of matured) {
     next.available.push(investigation.slug);
     say(`${investigation.slug} is ready`);
-  }
-
-  // 6. Publishing. One story leads the paper.
-  let publishedToday: string | null = null;
-  for (const action of actions) {
-    if (action.kind !== 'publish') continue;
-    if (publishedToday !== null) {
-      say('Only one story can lead.');
-      continue;
-    }
-    const at = next.available.indexOf(action.slug);
-    if (at === -1) {
-      say('That story is not ready.');
-      continue;
-    }
-    next.available.splice(at, 1);
-    next.published.push(action.slug);
-    publishedToday = action.slug;
-
-    const episode = bySlug.get(action.slug);
-    if (episode !== undefined) {
-      next.bills.push({
-        slug: action.slug,
-        lever: episode.lever,
-        dueOn: next.day + episode.print.issues,
-      });
-    }
-    say(`Published ${action.slug}`);
-  }
-
-  for (const action of actions) {
-    if (action.kind !== 'publish' && action.kind !== 'cultivate' && action.kind !== 'hire' && action.kind !== 'fire') {
-      say('Not something the paper does.');
-    }
   }
 
   next.copies *= publishedToday !== null ? 1 + PUBLISH_GROWTH : 1 - IDLE_DECAY;
@@ -365,8 +378,11 @@ export function playDay(
 
   // 9. Bills. The entry that lands today is the one earned days ago, by which
   // time the decision that caused it is off the screen.
-  const due = next.bills.filter((b) => b.dueOn === next.day);
-  next.bills = next.bills.filter((b) => b.dueOn !== next.day);
+  // `<=` rather than `===`: exact matching stranded a bill for ever if a caller
+  // ever advanced the day by more than one, and it is identical under a step of
+  // one. The same reasoning covers maturity above.
+  const due = next.bills.filter((b) => b.dueOn <= next.day);
+  next.bills = next.bills.filter((b) => b.dueOn > next.day);
   for (const bill of due) {
     switch (bill.lever) {
       case 'access':
