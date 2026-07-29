@@ -19,7 +19,7 @@ describe('formatting', () => {
   });
 
   it('writes money in pounds, with a minus when it has gone wrong', () => {
-    expect(formatTakings(3_890_688)).toBe('£38,906.88');
+    expect(formatTakings(4_520_688)).toBe("£45,206.88");
     expect(formatTakings(0)).toBe('£0.00');
     expect(formatTakings(-1_200)).toBe('-£12.00');
   });

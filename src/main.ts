@@ -2,7 +2,7 @@ import './tokens.css';
 import './game.css';
 import { loadEpisodes, type Playable } from './feed';
 import { formatCopies, formatPrice, formatTakings } from './ledger';
-import { playDay, startPaper, validatePool, type Action } from './paper';
+import { playDay, SOURCE_STEPS_TO_LEAD, startPaper, validatePool, type Action } from './paper';
 
 /**
  * The screen, and nothing else.
@@ -126,7 +126,7 @@ function start(pool: Playable[]): void {
       who.textContent = source.id;
       const says = document.createElement('span');
       says.className = 'voice-says';
-      says.textContent = `${source.steps}/4 towards a lead`;
+      says.textContent = `${source.steps}/${SOURCE_STEPS_TO_LEAD} towards a lead`;
 
       button.append(who, says);
       button.addEventListener('click', () => {
@@ -140,7 +140,7 @@ function start(pool: Playable[]): void {
     planned.textContent =
       plan.length === 0
         ? 'Nothing planned for tomorrow.'
-        : `Tomorrow: ${plan.map(describe).join(', ')}.`;
+        : `Tomorrow: ${plan.map(describe).join(', ')}. (Tap to clear.)`;
 
     desk.hidden = state.over;
     overBox.hidden = !state.over;
@@ -151,6 +151,13 @@ function start(pool: Playable[]): void {
     }
   }
 
+  // A plan is a list of intentions, so it has to be possible to change your
+  // mind. Without this the only way out of a misclick was to play the day.
+  planned.addEventListener('click', () => {
+    plan = [];
+    render();
+  });
+
   el<HTMLButtonElement>('hire').addEventListener('click', () => {
     plan.push({ kind: 'hire' });
     render();
@@ -159,11 +166,15 @@ function start(pool: Playable[]): void {
     plan.push({ kind: 'fire' });
     render();
   });
-  el<HTMLButtonElement>('next-day').addEventListener('click', () => {
+  const nextDay = el<HTMLButtonElement>('next-day');
+  nextDay.addEventListener('click', () => {
+    // Guarded: a double click used to burn a second day on an empty plan.
+    nextDay.disabled = true;
     state = playDay(state, pool, plan);
     plan = [];
     if (!state.over) state = { ...state, day: state.day + 1 };
     render();
+    nextDay.disabled = false;
   });
   el<HTMLButtonElement>('again').addEventListener('click', () => {
     state = startPaper();
@@ -182,9 +193,18 @@ async function boot(): Promise<void> {
       return;
     }
 
-    // Warnings for whoever is writing the pool, not for the player.
-    for (const issue of validatePool(pool)) {
-      console.warn('pool:', issue);
+    // A bad pool is a refusal, not a warning.
+    //
+    // These used to go to the console and the game started anyway. An unknown
+    // lever charges nothing, so a feed that renamed its levers would have turned
+    // the only cost in the game into a no-op and left it unlosable, with the
+    // sole trace a console line no player will ever read. The feed is served
+    // from another origin and can change without us.
+    const issues = validatePool(pool);
+    if (issues.length > 0) {
+      for (const issue of issues) console.warn('pool:', issue);
+      showOnly(errorBox);
+      return;
     }
 
     showOnly(gameBox);

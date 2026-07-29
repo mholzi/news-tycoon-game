@@ -137,12 +137,27 @@ describe('cultivating a source', () => {
     expect(line(after, 'Cultivated council')?.pence).toBe(-SOURCE_STEP_PENCE);
   });
 
-  it('takes the lowest slug first, by code point', () => {
+  it('takes the lowest slug first, by code point and never by locale', () => {
+    // 'B-story' sorts before 'a-story' by code point and after it under
+    // localeCompare. The source comment calls that ordering load-bearing, and
+    // before this test swapping the comparator left every test green.
+    const mixed = [episode('a-story', 'access'), episode('B-story', 'money')];
     let paper = startPaper();
     for (let i = 0; i < SOURCE_STEPS_TO_LEAD; i += 1) {
-      paper = step(paper, [{ kind: 'cultivate', sourceId: 'council' }]);
+      paper = step(paper, [{ kind: 'cultivate', sourceId: 'council' }], mixed);
     }
-    expect(paper.running[0].slug).toBe('a-story');
+    expect(paper.running[0].slug).toBe('B-story');
+  });
+
+  it('leaves a spent source stuck at the threshold rather than promising more', () => {
+    // It used to reset the counter before checking, so a spent archive showed
+    // 0/4, 1/4, 2/4 for ever while charging for every step of it.
+    let paper = startPaper({ cashPence: 100_000_000 });
+    const one = [episode('a-story', 'access')];
+    for (let i = 0; i < SOURCE_STEPS_TO_LEAD * 3; i += 1) {
+      paper = step(paper, [{ kind: 'cultivate', sourceId: 'council' }], one);
+    }
+    expect(paper.sources.find((s) => s.id === 'council')?.steps).toBe(SOURCE_STEPS_TO_LEAD);
   });
 
   it('says so when the archive is spent', () => {
@@ -335,6 +350,28 @@ describe('the payroll', () => {
   });
 });
 
+describe('the plan runs in the order it was written', () => {
+  it('does not let a later action undo an earlier one', () => {
+    // Three passes by kind made [work courts, let one go] and [let one go, work
+    // courts] the same day, which is not what the screen promises.
+    // Two reporters with one already on a story: exactly one is free, so the
+    // order of [work courts] and [let one go] decides whether courts is worked.
+    const busy = (): PaperState => {
+      let paper = startPaper({ reporters: 2 });
+      for (let i = 0; i < SOURCE_STEPS_TO_LEAD; i += 1) {
+        paper = step(paper, [{ kind: 'cultivate', sourceId: 'council' }]);
+      }
+      return paper;
+    };
+
+    const a = step(busy(), [{ kind: 'cultivate', sourceId: 'courts' }, { kind: 'fire' }]);
+    const b = step(busy(), [{ kind: 'fire' }, { kind: 'cultivate', sourceId: 'courts' }]);
+
+    expect(a.sources.find((s) => s.id === 'courts')?.steps).toBe(1);
+    expect(b.sources.find((s) => s.id === 'courts')?.steps).toBe(0);
+  });
+});
+
 describe('refusals', () => {
   it('names an unknown source', () => {
     const after = step(startPaper(), [{ kind: 'cultivate', sourceId: 'the-palace' }]);
@@ -390,6 +427,30 @@ describe('circulation', () => {
       expect(state.copies).toBeGreaterThanOrEqual(COPIES_FLOOR);
       expect(state.copies).toBeLessThanOrEqual(COPIES_CEILING);
     }
+  });
+
+  it('stops at the ceiling however many stories run', () => {
+    // Mutation testing found the clamp dead: no campaign in the suite came near
+    // a bound, so deleting both clamp() calls left every test green. This drives
+    // circulation into the ceiling deliberately.
+    let paper = startPaper({ cashPence: 100_000_000 });
+    paper.copies = COPIES_CEILING - 1;
+    for (let i = 0; i < 20; i += 1) {
+      paper = { ...playDay(paper, POOL, []), day: paper.day + 1 };
+      paper.copies *= 1.5;
+      paper = { ...playDay(paper, POOL, []), day: paper.day + 1 };
+    }
+    expect(paper.copies).toBe(COPIES_CEILING);
+  });
+
+  it('stops at the floor however long nobody publishes', () => {
+    let paper = startPaper({ cashPence: 100_000_000 });
+    paper.copies = COPIES_FLOOR + 1;
+    for (let i = 0; i < 400; i += 1) {
+      paper = { ...playDay(paper, POOL, []), day: paper.day + 1 };
+      if (paper.over) break;
+    }
+    expect(paper.copies).toBe(COPIES_FLOOR);
   });
 });
 

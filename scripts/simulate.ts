@@ -17,47 +17,18 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { assertPlayFeed, toPlayable, type PlayFeed, type Playable } from '../src/feed';
-import {
-  playDay,
-  startPaper,
-  type Action,
-  type PaperState,
-  type StartOptions,
-} from '../src/paper';
+import { CALIBRATION_DAYS, playPolicy } from '../src/policy';
+import { formatCopies, formatTakings } from '../src/ledger';
 
-const DAYS = 400;
 
 function pool(file: string): Playable[] {
   const raw = readFileSync(join(process.cwd(), 'tests/fixtures', file), 'utf-8');
   return assertPlayFeed(JSON.parse(raw) as PlayFeed).episodes.map(toPlayable);
 }
 
-/**
- * The policy the issue's table is measured under: `cultivators` reporters work
- * `council` every day, and any story that has matured is published at once.
- * Publishing is capped at one a day by `playDay`, so a backlog simply waits.
- */
-function play(episodes: Playable[], cultivators: number, options: StartOptions): PaperState {
-  let state = startPaper(options);
-
-  for (let day = 1; day <= DAYS; day += 1) {
-    const actions: Action[] = [];
-    for (let i = 0; i < cultivators; i += 1) actions.push({ kind: 'cultivate', sourceId: 'council' });
-    if (state.available.length > 0) actions.push({ kind: 'publish', slug: state.available[0] });
-
-    state = playDay(state, episodes, actions);
-    if (state.over) return state;
-    // Only advance between days, so a survivor's `day` is the days it played.
-    if (day < DAYS) state = { ...state, day: state.day + 1 };
-  }
-
-  return state;
-}
-
 const episodes = pool('pool-36.json');
-const money = (pence: number) => `£${(pence / 100).toFixed(2)}`;
 
-console.log(`pool: ${episodes.length} episodes, ${DAYS} days simulated\n`);
+console.log(`pool: ${episodes.length} episodes, ${CALIBRATION_DAYS} days simulated\n`);
 console.log('reporters  cultivating  outcome');
 
 for (const [reporters, cultivators] of [
@@ -69,10 +40,10 @@ for (const [reporters, cultivators] of [
   [6, 1],
   [4, 2],
 ] as const) {
-  const end = play(episodes, cultivators, { reporters });
+  const end = playPolicy(episodes, cultivators, { reporters });
   const outcome = end.over
     ? `broke on day ${end.day}`
-    : `survives: ${Math.round(end.copies).toLocaleString('en-GB')} copies, ` +
-      `${end.published.length} published, ${money(end.cashPence)}`;
+    : `survives: ${formatCopies(end.copies)} copies, ` +
+      `${end.published.length} published, ${formatTakings(end.cashPence)}`;
   console.log(`${String(reporters).padStart(9)}  ${String(cultivators).padStart(11)}  ${outcome}`);
 }

@@ -2,16 +2,30 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { assertPlayFeed, toPlayable, type PlayFeed, type Playable } from '../../src/feed';
-import { playDay, startPaper, type Action, type PaperState, type StartOptions } from '../../src/paper';
+import { CALIBRATION_DAYS, playPolicy } from '../../src/policy';
+import {
+  COPIES_CEILING,
+  COPIES_FLOOR,
+  HIRE_COST_PENCE,
+  billBasisPence,
+} from '../../src/paper';
 
 /**
- * The calibration table, asserted.
+ * The calibration, and the shape it is supposed to have.
  *
- * These figures come from `scripts/simulate.ts`, which drives the same
- * `playDay` this file does. That is deliberate and it is the whole point: four
- * calibrations of this economy were wrong in a single day because each was a
- * separate model of part of the system. There is one model now, and if it
- * changes these numbers move with it and this file goes red.
+ * Two kinds of assertion here, and the difference matters.
+ *
+ * The **literals** come from `scripts/simulate.ts`, which drives the same
+ * `playPolicy` this file does. They catch any change to any constant, but they
+ * are the output of the code under test: on their own they are a regression
+ * lock whose only possible repair is to re-baseline, and a re-baselined lock
+ * cannot tell a tuning change from a regression.
+ *
+ * So the **relations** below are the real test. They say what the economy is
+ * for — carrying more staff kills you sooner, working a source is what keeps
+ * you alive — and they cannot be satisfied by copying whatever the model
+ * currently prints. If a change inverts one of them the suite goes red no
+ * matter what the numbers are.
  *
  *   npx vite-node scripts/simulate.ts
  */
@@ -22,63 +36,78 @@ const pool: Playable[] = assertPlayFeed(
   ) as PlayFeed,
 ).episodes.map(toPlayable);
 
-const DAYS = 400;
+const play = (cultivators: number, reporters?: number) =>
+  playPolicy(pool, cultivators, reporters === undefined ? {} : { reporters });
 
-/** `cultivators` reporters work `council`; anything matured is published at once. */
-function play(cultivators: number, options: StartOptions): PaperState {
-  let state = startPaper(options);
-  for (let day = 1; day <= DAYS; day += 1) {
-    const actions: Action[] = [];
-    for (let i = 0; i < cultivators; i += 1) actions.push({ kind: 'cultivate', sourceId: 'council' });
-    if (state.available.length > 0) actions.push({ kind: 'publish', slug: state.available[0] });
-
-    state = playDay(state, pool, actions);
-    if (state.over) return state;
-    // Only advance between days, never past the last one, so a survivor's
-    // `day` is the number of days it played rather than one more.
-    if (day < DAYS) state = { ...state, day: state.day + 1 };
-  }
-  return state;
-}
-
-describe('a paper that does nothing', () => {
-  it('closes on day 112 with three reporters', () => {
-    const end = play(0, {});
-    expect(end.over).toBe(true);
-    expect(end.day).toBe(112);
+describe('the shape of the economy', () => {
+  it('kills a bigger payroll sooner', () => {
+    const three = play(0).day;
+    const four = play(0, 4).day;
+    const six = play(0, 6).day;
+    expect(six).toBeLessThan(four);
+    expect(four).toBeLessThan(three);
   });
 
-  it('closes sooner the more reporters it carries', () => {
-    expect(play(0, { reporters: 4 }).day).toBe(48);
-    expect(play(0, { reporters: 6 }).day).toBe(18);
+  it('rewards working a source and punishes standing still', () => {
+    expect(play(0).over).toBe(true);
+    expect(play(1).over).toBe(false);
+  });
+
+  it('punishes hiring past what the paper can carry, even when it is played well', () => {
+    expect(play(1).over).toBe(false);
+    expect(play(1, 4).over).toBe(true);
+    expect(play(1, 6).day).toBeLessThan(play(1, 4).day);
+  });
+
+  it('gives an idle paper weeks rather than days or years', () => {
+    // The clock has to be long enough to be a decision and short enough to be a
+    // pressure. Bounds from the design, not from a run.
+    const idle = play(0).day;
+    expect(idle).toBeGreaterThan(60);
+    expect(idle).toBeLessThan(200);
+  });
+
+  it('grows a working paper rather than merely keeping it alive', () => {
+    const end = play(1);
+    expect(end.copies).toBeGreaterThan(20_000);
+    expect(end.cashPence).toBeGreaterThan(0);
   });
 });
 
-describe('a paper that works one source', () => {
-  it('survives the year, publishes the whole archive, and grows', () => {
-    const end = play(1, {});
-    expect(end.over).toBe(false);
-    expect(end.day).toBe(DAYS);
+describe('the calibration', () => {
+  it('closes an idle paper on the measured days', () => {
+    expect(play(0).day).toBe(112);
+    expect(play(0, 4).day).toBe(48);
+    expect(play(0, 6).day).toBe(18);
+  });
+
+  it('carries a worked paper through the year on the measured figures', () => {
+    const end = play(1);
+    expect(end.day).toBe(CALIBRATION_DAYS);
     expect(Math.round(end.copies)).toBe(22_579);
     expect(end.published).toHaveLength(36);
-    expect(end.cashPence).toBe(3_890_688);
+    expect(end.cashPence).toBe(4_520_688);
   });
 
-  it('is killed by over-hiring even when it is played well', () => {
-    expect(play(1, { reporters: 4 }).day).toBe(35);
-    expect(play(1, { reporters: 6 }).day).toBe(15);
+  it('closes an over-staffed paper on the measured days', () => {
+    expect(play(1, 4).day).toBe(35);
+    expect(play(1, 6).day).toBe(15);
   });
 
-  it('is killed by working more sources than the paper can carry', () => {
-    expect(play(2, { reporters: 4 }).day).toBe(35);
+  it('pins the constants the runs above cannot reach', () => {
+    // Mutation testing found these three invisible: an order of magnitude on
+    // any of them left every test green, because no campaign here approaches a
+    // bound or runs out of money at the moment of hiring.
+    expect(COPIES_CEILING).toBe(80_000);
+    expect(COPIES_FLOOR).toBe(2_000);
+    expect(HIRE_COST_PENCE).toBe(5_000);
+    expect(billBasisPence()).toBe(10_000);
   });
 });
 
 describe('the archive', () => {
   it('is the thing that runs out, and the paper survives it', () => {
-    const end = play(1, {});
-    // Everything published and still trading: routine copy is what pays the wages,
-    // which is the correction that made a 36-episode archive enough.
+    const end = play(1);
     expect(end.published).toHaveLength(pool.length);
     expect(end.available).toHaveLength(0);
     expect(end.cashPence).toBeGreaterThan(0);
