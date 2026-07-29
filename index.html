@@ -6,7 +6,7 @@
     <title>News Tycoon</title>
     <meta
       name="description"
-      content="One issue at a time: who to believe, whether to print, and a bill that arrives long after you have forgotten the decision that caused it."
+      content="A day at a time: what the paper costs to run, what you send reporters after, and which story leads tomorrow."
     />
     <script type="module" src="/src/main.ts"></script>
   </head>
@@ -15,23 +15,19 @@
       <section class="stack">
         <h1>News Tycoon</h1>
         <p class="lede">
-          The trade stays unsolvable because you cannot verify, the bill arrives much later, and
-          the second account has no price on it. Reading that is not the same as it being true.
-          This is the smallest thing that can test it.
+          You own the paper and you edit it. Wages leave every morning whether anyone files or
+          not, routine copy just about covers them, and the only thing that grows a readership is
+          a story worth reading. Getting one costs money weeks before it earns any.
         </p>
         <p class="meta">
           It plays the real research, fetched from the archive at
-          <a href="https://news-tycoon.vercel.app/play.json">play.json</a>. Rough on purpose, and
-          the numbers behind the delays are a first guess rather than a finding.
+          <a href="https://news-tycoon.vercel.app/play.json">play.json</a>. The figures are a
+          first calibration rather than a finding.
         </p>
       </section>
 
-      <!--
-        Three states, exactly one visible at a time. `#empty` and `#error` did
-        not exist while the game was compiled into the site: a payload baked
-        into the page at build time cannot fail to arrive or turn up empty.
-        Fetching it can do both.
-      -->
+      <!-- Three states before the game exists at all: the archive is fetched, so
+           it can fail to arrive or turn up empty. -->
       <section class="stack" id="loading">
         <p class="meta">Loading the archive…</p>
       </section>
@@ -45,88 +41,57 @@
       </section>
 
       <section class="stack" id="game" hidden>
+        <!-- One account. Everything the owner can see is here, and everything
+             here has a figure against it. -->
         <div class="ledgers">
           <div class="ledger">
-            <p class="ledger-label">The owner's account</p>
+            <p class="ledger-label">The account</p>
+            <p class="ledger-figure" id="cash"></p>
+            <p class="meta">in hand</p>
             <p class="ledger-figure" id="copies"></p>
-            <p class="meta">copies a week</p>
+            <p class="meta">copies a day</p>
             <p class="ledger-figure" id="price"></p>
             <p class="meta">a copy</p>
-            <p class="ledger-figure" id="takings"></p>
-            <p class="meta">taken so far</p>
-            <p class="meta ledger-note" id="ledger-note"></p>
-            <!-- Kept, and kept exact: two Playwright tests read this node's text
-                 as the printed count. It is the smallest line here now, which is
-                 roughly what it is worth beside the money. -->
-            <p class="ledger-run"><span id="printed">0</span> stories run</p>
+            <p class="ledger-run"><span id="reporters"></span> reporters · <span id="day"></span></p>
           </div>
           <div class="ledger other">
-            <p class="ledger-label">The other account</p>
-            <p class="meta" id="record-empty">Nothing has come back yet.</p>
-            <ol class="record" id="record"></ol>
+            <p class="ledger-label">The book</p>
+            <p class="meta" id="ledger-empty">Nothing has happened yet.</p>
+            <ol class="record" id="ledger"></ol>
           </div>
         </div>
 
-        <!-- Deliberately not modal. The desk below stays live, so a player who
-             ignores this keeps the decade's standard price and loses nothing but
-             the choice. It is also what keeps the older end-to-end runs, which
-             never click a price, passing untouched. -->
-        <div class="issue price-menu" id="price-menu" hidden>
-          <p class="eyebrow">A new decade · what does the paper cost?</p>
-          <div class="choices">
-            <button type="button" class="cta" id="price-cheap"></button>
-            <button type="button" class="cta" id="price-standard"></button>
-            <button type="button" class="cta" id="price-dear"></button>
-          </div>
-        </div>
+        <div class="issue" id="desk">
+          <p class="eyebrow">Tomorrow's paper</p>
 
-        <div class="issue" id="issue">
-          <p class="eyebrow"><span id="issue-no">Issue 1</span> · <span id="issue-where"></span></p>
-          <p class="desk" id="desk"></p>
-
-          <div id="step-believe">
-            <h2>Who do you believe?</h2>
-            <ul class="voices" id="voices"></ul>
+          <div id="step-available">
+            <h2>What leads?</h2>
+            <p class="meta" id="available-empty">Nothing has come back from anyone yet.</p>
+            <ul class="voices" id="available"></ul>
           </div>
 
-          <div id="step-print" hidden>
-            <h2>Do you print it?</h2>
-            <p class="meta" id="cannot-know"></p>
+          <div id="step-sources">
+            <h2>What is anyone working on?</h2>
+            <ul class="voices" id="sources"></ul>
+          </div>
+
+          <div id="step-staff">
+            <h2>The newsroom</h2>
             <div class="choices">
-              <button type="button" class="cta" id="do-print">Print it</button>
-              <button type="button" class="cta" id="do-hold">Hold it</button>
+              <button type="button" class="cta" id="hire">Hire a reporter</button>
+              <button type="button" class="cta" id="fire">Let one go</button>
             </div>
           </div>
 
-          <div id="step-result" hidden>
-            <p class="result" id="result-now"></p>
-            <p class="meta" id="result-wait"></p>
-            <div class="choices">
-              <button type="button" class="cta" id="next">Next issue</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- A paper comes out whether or not there is a dilemma in it. Without
-             these the archive runs out at issue two while the earliest bill is
-             due at issue five, and the one mechanic this game exists to test
-             never gets to happen. -->
-        <div class="issue" id="quiet" hidden>
-          <p class="eyebrow"><span id="quiet-no"></span> · nothing on the desk</p>
-          <p class="desk">
-            An ordinary issue. Someone else's story leads, the paper goes out, and you would not
-            remember this week at all.
-          </p>
-          <p class="meta" id="quiet-owed"></p>
+          <p class="meta" id="planned">Nothing planned for tomorrow.</p>
           <div class="choices">
-            <button type="button" class="cta" id="quiet-next">Next issue</button>
+            <button type="button" class="cta" id="next-day">Print it</button>
           </div>
         </div>
 
-        <div class="issue" id="done" hidden>
-          <h2>That is the whole archive</h2>
-          <p id="done-text"></p>
-          <p class="meta" id="done-pending"></p>
+        <div class="issue" id="over" hidden>
+          <h2>The paper has closed</h2>
+          <p id="over-text"></p>
           <div class="choices">
             <button type="button" class="cta" id="again">Start again</button>
           </div>
