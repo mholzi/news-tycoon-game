@@ -74,6 +74,7 @@ function start(pool: Playable[]): void {
   const tomorrowSlots = el('tomorrow-slots');
   const desk = el('desk');
   const overBox = el('over');
+  const overHeading = el('over-heading');
   const overText = el('over-text');
   const wire = el<HTMLButtonElement>('wire');
   const buyStringer = el<HTMLButtonElement>('buy-stringer');
@@ -335,9 +336,13 @@ function start(pool: Playable[]): void {
     desk.hidden = state.over;
     overBox.hidden = !state.over;
     if (state.over) {
-      overText.textContent = `You ran ${state.published.length} ${
+      const run = `You ran ${state.published.length} ${
         state.published.length === 1 ? 'story' : 'stories'
-      } in ${state.day} days, and then the wages went out and nothing came back. The bill that closed you was earned some time ago.`;
+      } in ${state.day} days`;
+      overHeading.textContent = state.won ? 'Everyone reads you now' : 'The paper has closed';
+      overText.textContent = state.won
+        ? `${run}, and everyone reads you now — ${formatCopies(state.copies)} copies a day.`
+        : `${run}, and then the wages went out and nothing came back. The bill that closed you was earned some time ago.`;
     }
   }
 
