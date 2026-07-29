@@ -80,6 +80,15 @@
             <div class="choices">
               <button type="button" class="cta" id="hire">Hire a reporter</button>
               <button type="button" class="cta" id="fire">Let one go</button>
+            </div>
+          </div>
+
+          <!-- Their own heading. Taking the wire and buying a stringer story
+               are ways to fill a paper, not headcount, and under "The newsroom"
+               nobody scanning by heading would look for them. -->
+          <div id="step-buy">
+            <h2>What can you buy in?</h2>
+            <div class="choices">
               <!-- Labelled here as well as in render(): an empty button has no
                    accessible name, and these two are nameless in the served
                    document and in every moment before the first render. -->
@@ -89,6 +98,14 @@
           </div>
 
           <p class="meta" id="planned">Nothing planned for tomorrow.</p>
+          <!-- A real button, not a click handler on the paragraph. The plan is
+               eight action kinds deep now, so multi-action days are normal and
+               discarding one by mis-tapping prose is a real cost. -->
+          <div class="choices">
+            <button type="button" class="cta" id="clear-plan" hidden>
+              Clear tomorrow's plan
+            </button>
+          </div>
           <div class="choices">
             <button type="button" class="cta" id="next-day">Print it</button>
           </div>

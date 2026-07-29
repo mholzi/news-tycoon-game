@@ -234,8 +234,14 @@ export function startPaper(options: StartOptions = {}): PaperState {
   const reporters = options.reporters ?? START_REPORTERS;
   const cashPence = options.cashPence ?? START_CASH_PENCE;
 
-  if (!Number.isInteger(reporters) || reporters < 1) {
-    throw new RangeError(`a paper needs at least one reporter, got ${reporters}`);
+  // Against MIN_REPORTERS, not 1. `fire` refuses to go below three, so a
+  // constructor that accepted two handed callers a state the rules say cannot
+  // exist — and the advertorial pays a flat fee against wages that scale with
+  // heads, so a one-reporter paper banked £31 a day at the circulation floor
+  // and never closed. That is the same unlosable game MIN_REPORTERS was raised
+  // to prevent, still reachable through the door the calibration harness uses.
+  if (!Number.isInteger(reporters) || reporters < MIN_REPORTERS) {
+    throw new RangeError(`a paper needs at least ${MIN_REPORTERS} reporters, got ${reporters}`);
   }
   if (!Number.isFinite(cashPence) || cashPence < 0) {
     throw new RangeError(`a paper cannot open in debt, got ${cashPence}`);

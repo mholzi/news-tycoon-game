@@ -30,6 +30,7 @@ import {
   type Action,
   type PaperState,
 } from '../../src/paper';
+import { ADVERTORIAL_ID, type StorySource } from '../../src/sources';
 
 /** Only `slug`, `lever` and the print delay matter here; the prose makes it a real `Playable`. */
 function episode(slug: string, lever: string, issues = 3): Playable {
@@ -75,6 +76,16 @@ describe('opening a paper', () => {
     expect(() => startPaper({ reporters: 0 })).toThrow(RangeError);
     expect(() => startPaper({ reporters: 1.5 })).toThrow(RangeError);
     expect(() => startPaper({ cashPence: -1 })).toThrow(RangeError);
+  });
+
+  it('refuses to open below the floor `fire` enforces', () => {
+    // The bound has to be MIN_REPORTERS, not 1. A paper of one or two is a
+    // state the rules say is unreachable — and an unlosable one, since the
+    // advertorial pays a flat fee against wages that scale with heads.
+    for (let n = 1; n < MIN_REPORTERS; n += 1) {
+      expect(() => startPaper({ reporters: n })).toThrow(RangeError);
+    }
+    expect(() => startPaper({ reporters: MIN_REPORTERS })).not.toThrow();
   });
 
   it('measures a bill in a day of takings, not in a day of cover price', () => {
@@ -393,10 +404,19 @@ describe('refusals', () => {
   });
 
   it('needs a spare reporter for every source worked', () => {
-    const after = step(startPaper({ reporters: 1 }), [
-      { kind: 'cultivate', sourceId: 'council' },
-      { kind: 'cultivate', sourceId: 'courts' },
-    ]);
+    // "One reporter, two sources" is no longer an openable paper — the floor is
+    // three. One reporter on an investigation leaves two free, so the third
+    // source worked the same day has nobody to work it.
+    let paper = startPaper();
+    for (let i = 0; i < SOURCE_STEPS_TO_LEAD; i += 1) {
+      paper = step(paper, [{ kind: 'cultivate', sourceId: 'council' }]);
+    }
+    expect(paper.running).toHaveLength(1);
+
+    const after = step(
+      paper,
+      STARTING_SOURCES.map((sourceId) => ({ kind: 'cultivate', sourceId }) as Action),
+    );
     expect(line(after, 'Nobody spare to work it.')).toBeDefined();
   });
 
@@ -479,6 +499,46 @@ describe('the pool', () => {
 
   it('says nothing about a sound pool', () => {
     expect(validatePool(POOL)).toEqual([]);
+  });
+
+  it('rejects a slug reserved for a generated story', () => {
+    // `available`, `published` and `bills` are all keyed by one id space, so a
+    // feed episode called `advertorial` or `tip-7` collides with a generated
+    // one: `publish` resolves by findIndex, hits whichever comes first, and the
+    // researched story is unpublishable for ever with its bill never firing.
+    // None of that is visible to the player, which is why it is a build-time
+    // refusal rather than something to notice in play.
+    for (const slug of ['advertorial', 'wire-1', 'planted-1', 'stringer-1', 'tip-1', 'follow-1']) {
+      expect(validatePool([episode(slug, 'access')])).toContainEqual({
+        code: 'reserved-slug',
+        slug,
+      });
+    }
+  });
+
+  it('reserves an id for every source that generates one', () => {
+    // The regex in `validatePool` is a hand-written parallel to the `<source>-
+    // <day>` ids in sources.ts. This is what fails if an eighth generated
+    // source lands without extending it — the collision above, reopened.
+    const generates: readonly StorySource[] = ['wire', 'planted', 'stringer', 'tip', 'follow'];
+    for (const source of generates) {
+      expect(validatePool([episode(`${source}-42`, 'access')])).toContainEqual({
+        code: 'reserved-slug',
+        slug: `${source}-42`,
+      });
+    }
+    expect(validatePool([episode(ADVERTORIAL_ID, 'access')])).toContainEqual({
+      code: 'reserved-slug',
+      slug: ADVERTORIAL_ID,
+    });
+  });
+
+  it('leaves a slug that only looks generated alone', () => {
+    // The shape is `<source>-<digits>`. Prose that merely starts the same way
+    // is a legitimate episode slug and must not be refused.
+    for (const slug of ['wire-story', 'tipping-point', 'follow-up', 'planted-evidence']) {
+      expect(validatePool([episode(slug, 'access')])).toEqual([]);
+    }
   });
 
   it('knows exactly three levers', () => {

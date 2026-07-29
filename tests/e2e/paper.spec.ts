@@ -190,13 +190,53 @@ test('a plan can be changed before it is printed', async ({ page }) => {
   await serveFeed(page);
   await page.goto('/');
 
+  // Clearing is a real button, and only offered when there is something to
+  // clear. It used to be a click handler on the paragraph: mouse-only, no
+  // focus, no role, and one mis-tap discarded a whole multi-action day.
+  await expect(page.locator('#clear-plan')).toBeHidden();
   await page.locator('#hire').click();
   await expect(page.locator('#planned')).toContainText('hire a reporter');
-  await page.locator('#planned').click();
+
+  await expect(page.locator('#clear-plan')).toBeVisible();
+  await page.locator('#clear-plan').focus();
+  await expect(page.locator('#clear-plan')).toBeFocused();
+  await page.keyboard.press('Enter');
   await expect(page.locator('#planned')).toHaveText('Nothing planned for tomorrow.');
+  await expect(page.locator('#clear-plan')).toBeHidden();
 
   await page.locator('#next-day').click();
   await expect(page.locator('#reporters')).toHaveText('3/3');
+});
+
+test('the wire button says what the plan will leave behind', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+
+  // The label used to read from committed state only, so it contradicted the
+  // click that had just queued a change.
+  await expect(page.locator('#wire')).toContainText('Take the wire');
+  await page.locator('#wire').click();
+  await expect(page.locator('#wire')).toContainText('Drop the wire');
+  await expect(page.locator('#planned')).toContainText('take the wire');
+
+  // A second press cancels the first instead of queueing a duplicate the model
+  // answers with "Already on the wire."
+  await page.locator('#wire').click();
+  await expect(page.locator('#wire')).toContainText('Take the wire');
+  await expect(page.locator('#planned')).toHaveText('Nothing planned for tomorrow.');
+});
+
+test('a planned check is counted against the reporters still free', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+
+  await expect(page.locator('#reporters')).toHaveText('3/3');
+  // Working a source spends a reporter for the day, and the figure has to say
+  // so before Print it rather than after.
+  await page.locator('.source[data-source="council"] .cultivate').click();
+  await expect(page.locator('#reporters')).toHaveText('2/3');
+  await page.locator('.source[data-source="courts"] .cultivate').click();
+  await expect(page.locator('#reporters')).toHaveText('1/3');
 });
 
 test('starting again puts the paper back where it began', async ({ page }) => {

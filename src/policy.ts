@@ -9,7 +9,15 @@
  */
 
 import type { Playable } from './feed';
-import { playDay, startPaper, type Action, type PaperState, type StartOptions, type Story } from './paper';
+import {
+  playDay,
+  startPaper,
+  STARTING_SOURCES,
+  type Action,
+  type PaperState,
+  type StartOptions,
+  type Story,
+} from './paper';
 import { STRINGER_PENCE } from './sources';
 
 /**
@@ -44,8 +52,14 @@ export interface PolicyUses {
  * What the policy is willing to run today, best first.
  *
  * Highest growth wins, ties broken by code point so the choice is reproducible.
- * An unverified tip is only ever run by a policy that has decided not to check
- * its tips, which is the whole gamble expressed as a flag.
+ *
+ * The tip rule is the one worth reading twice. A tip that stands up keeps
+ * `source: 'tip'` and only flips `unverified`, so the first version of this
+ * filter — `uses.checkTips !== true` on the source alone — excluded the
+ * verified ones too. A `checkTips` policy therefore paid two reporter-days per
+ * check and then threw every result away: 36 checks, 15 standing up, none ever
+ * printed. The row it produced was labelled as the reward for checking and
+ * measured not printing tips at all. Filter on the thing the check changes.
  */
 function pick(available: readonly Story[], uses: PolicyUses): Story | undefined {
   const allowed = available.filter((s) => {
@@ -53,7 +67,11 @@ function pick(available: readonly Story[], uses: PolicyUses): Story | undefined 
     if (s.source === 'wire') return uses.wire === true;
     if (s.source === 'stringer') return uses.stringer === true;
     if (s.source === 'planted' || s.source === 'follow') return uses.unbidden === true;
-    if (s.source === 'tip') return uses.unbidden === true && uses.checkTips !== true;
+    if (s.source === 'tip') {
+      if (uses.unbidden !== true) return false;
+      // Checking is what makes it printable; not checking is the gamble.
+      return uses.checkTips === true ? s.unverified !== true : true;
+    }
     return true;
   });
   // `filter` already returned a fresh array, so this sorts nothing the caller
@@ -66,8 +84,16 @@ function pick(available: readonly Story[], uses: PolicyUses): Story | undefined 
 export const CALIBRATION_DAYS = 400;
 
 /**
- * Work `cultivators` reporters on `council` every day and run any story the
- * moment it matures. `playDay` caps publishing at one a day, so a backlog waits.
+ * Work `cultivators` reporters on a different source each, every day, and run
+ * any story the moment it matures. `playDay` caps publishing at one a day, so a
+ * backlog waits.
+ *
+ * One reporter per source, not `cultivators` reporters on `council`. `playDay`
+ * refuses a second go at a source the same day, so the old version silently
+ * clamped every value above one to one: `investigations-2c 4r 2c` printed a
+ * campaign bit-for-bit identical to `investigations-4 4r 1c`, and the table
+ * carried it as a measurement. Capped at the number of sources that exist,
+ * because a fourth cultivator would be the same no-op again.
  */
 export function playPolicy(
   pool: readonly Playable[],
@@ -76,6 +102,12 @@ export function playPolicy(
   days = CALIBRATION_DAYS,
   uses: PolicyUses = {},
 ): PaperState {
+  if (!Number.isInteger(cultivators) || cultivators < 0 || cultivators > STARTING_SOURCES.length) {
+    throw new RangeError(
+      `cultivators must be 0 to ${STARTING_SOURCES.length}, got ${cultivators}`,
+    );
+  }
+
   let state = startPaper(options);
 
   for (let day = 1; day <= days; day += 1) {
@@ -84,7 +116,7 @@ export function playPolicy(
     if (uses.wire === true && !state.subscribed) actions.push({ kind: 'subscribe' });
 
     for (let i = 0; i < cultivators; i += 1) {
-      actions.push({ kind: 'cultivate', sourceId: 'council' });
+      actions.push({ kind: 'cultivate', sourceId: STARTING_SOURCES[i] });
     }
 
     if (uses.checkTips === true) {
