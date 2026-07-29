@@ -8,6 +8,8 @@ import {
   billBasisPence,
   HIRE_COST_PENCE,
   IDLE_DECAY,
+  INSIDE_SHARE,
+  issueGrowth,
   INVESTIGATION_DAYS,
   LAW_COST_MULTIPLE,
   LEVERS,
@@ -30,7 +32,7 @@ import {
   type Action,
   type PaperState,
 } from '../../src/paper';
-import { ADVERTORIAL_ID, type StorySource } from '../../src/sources';
+import { ADVERTORIAL_ID, type Story, type StorySource } from '../../src/sources';
 
 /** Only `slug`, `lever` and the print delay matter here; the prose makes it a real `Playable`. */
 function episode(slug: string, lever: string, issues = 3): Playable {
@@ -226,13 +228,16 @@ describe('publishing', () => {
     expect(after.published.map((s) => s.id)).toEqual(['a-story']);
   });
 
-  it('only one story can lead', () => {
+  it('runs a story once, however many times it is queued', () => {
+    // An issue holds more than one story now, so a second publish is no longer
+    // refused on principle. What stops a repeat is that the story left the desk
+    // when it ran: the second attempt finds nothing there.
     const ready = withStory();
     const after = step(ready, [
       { kind: 'publish', id: 'a-story' },
       { kind: 'publish', id: 'a-story' },
     ]);
-    expect(line(after, 'Only one story can lead.')).toBeDefined();
+    expect(line(after, 'That story is not ready.')).toBeDefined();
     expect(after.published).toHaveLength(1);
   });
 
@@ -543,6 +548,162 @@ describe('the pool', () => {
 
   it('knows exactly three levers', () => {
     expect([...LEVERS]).toEqual(['access', 'money', 'law']);
+  });
+});
+
+describe('an issue, not a slot', () => {
+  /** Only `growth` and `source` matter to `issueGrowth`; the rest makes it a `Story`. */
+  const at = (growth: number, source = 'stringer'): Story => ({
+    id: `s-${growth}-${source}`,
+    source: source as Story['source'],
+    headline: 'x',
+    growth,
+    consequence: null,
+    paysPence: 0,
+    unverified: false,
+    offeredOn: 1,
+  });
+
+  it('is a day with no paper when it is empty', () => {
+    expect(issueGrowth([])).toBe(1 - IDLE_DECAY);
+  });
+
+  it('is exactly the lead when the lead is all there is', () => {
+    expect(issueGrowth([at(1.07)])).toBe(1.07);
+  });
+
+  it('gives each inside story a diminishing share of its surplus', () => {
+    // Computed from the formula by hand, not read back off the implementation.
+    const inside = (n: number) => issueGrowth([at(1.07), ...Array(n).fill(at(1.04))]);
+    expect(inside(1)).toBeCloseTo(1.084267, 6);
+    expect(inside(2)).toBeCloseTo(1.089086, 6);
+    expect(inside(5)).toBeCloseTo(1.091417, 6);
+  });
+
+  it('lets a story below one drag the issue under its own lead', () => {
+    // The property the whole shape was chosen for: padding costs you.
+    expect(issueGrowth([at(1.07), at(0.998, 'wire')])).toBeLessThan(1.07);
+  });
+
+  /**
+   * The bound. No quantity of lesser copy may beat one good story.
+   *
+   * `1.07` is deliberately absent: an issue led by an investigation with more
+   * investigations inside is *supposed* to beat a lone one. The claim is only
+   * about copy that is worse than an investigation.
+   */
+  it('never lets lesser copy reach an investigation, however much of it there is', () => {
+    for (const growth of [1.04, 1.03, 0.998, 0.996, 0.975, 0.95]) {
+      for (let n = 1; n <= 8; n += 1) {
+        const g = issueGrowth([at(growth), ...Array(n).fill(at(growth))]);
+        expect(g).toBeLessThan(1 + PUBLISH_GROWTH);
+      }
+    }
+  });
+
+  it('keeps INSIDE_SHARE under the crossing where that stops being true', () => {
+    // 0.416949 is where an all-planted issue reaches an investigation's 1.07.
+    expect(INSIDE_SHARE).toBeLessThan(0.416949);
+  });
+
+  it('refuses a story nobody is free to write, and takes nothing else with it', () => {
+    // Compared against a control day, because every day writes 'Wages' and
+    // 'Sales' and always moves the till.
+    const busy = startPaper();
+    const plan: Action[] = STARTING_SOURCES.map(
+      (sourceId) => ({ kind: 'cultivate', sourceId }) as Action,
+    );
+    const control = step(busy, plan);
+    const refused = step(busy, [...plan, { kind: 'publish', id: 'advertorial' }]);
+
+    expect(line(refused, 'Nobody spare to write it.')).toBeDefined();
+    expect(line(control, 'Nobody spare to write it.')).toBeUndefined();
+    expect(refused.published).toEqual(control.published);
+    expect(refused.cashPence).toBe(control.cashPence);
+    expect(refused.bills).toEqual(control.bills);
+  });
+
+  it('charges a reporter for a story, so writing and working a source compete', () => {
+    const after = step(startPaper(), [
+      { kind: 'publish', id: 'advertorial' },
+      ...STARTING_SOURCES.map((sourceId) => ({ kind: 'cultivate', sourceId }) as Action),
+    ]);
+    // Three reporters: one wrote, two worked sources, the third source had nobody.
+    expect(line(after, 'Nobody spare to work it.')).toBeDefined();
+  });
+
+  it('sells the advertiser one page and no more', () => {
+    const after = step(startPaper({ reporters: 6 }), [
+      { kind: 'publish', id: 'advertorial' },
+      { kind: 'publish', id: 'advertorial' },
+    ]);
+    expect(line(after, 'The advertiser gets one page.')).toBeDefined();
+    expect(after.published.filter((s) => s.id === 'advertorial')).toHaveLength(1);
+    // Still an offer, so it is there again tomorrow.
+    expect(after.available.some((s) => s.id === 'advertorial')).toBe(true);
+  });
+
+  it('lets the plan order decide what leads', () => {
+    // A matured investigation and a bought story on the same desk, with enough
+    // hands to run both, so only the order can explain the difference.
+    let paper = startPaper({ reporters: 6 });
+    for (let i = 0; i < SOURCE_STEPS_TO_LEAD; i += 1) {
+      paper = step(paper, [{ kind: 'cultivate', sourceId: 'council' }]);
+    }
+    for (let i = 0; i < INVESTIGATION_DAYS; i += 1) paper = step(paper);
+    paper = step(paper, [{ kind: 'buy-stringer' }]);
+    const stringer = paper.available.find((s: Story) => s.source === 'stringer')!;
+    expect(paper.available.some((s: Story) => s.id === 'a-story')).toBe(true);
+
+    const led = (first: string, second: string) =>
+      step(paper, [
+        { kind: 'publish', id: first },
+        { kind: 'publish', id: second },
+      ]).copies;
+
+    // An investigation leads at 1.07 and a stringer at 1.03, so the order shows.
+    expect(led('a-story', stringer.id)).not.toBeCloseTo(led(stringer.id, 'a-story'), 6);
+  });
+});
+
+describe('agency copy', () => {
+  const subscribed = (): PaperState => {
+    let paper = step(startPaper(), [{ kind: 'subscribe' }]);
+    paper = step(paper);
+    expect(paper.available.some((s) => s.source === 'wire')).toBe(true);
+    return paper;
+  };
+
+  it('fills as much of an issue as you like, and costs no reporter', () => {
+    const paper = subscribed();
+    const wire = paper.available.find((s) => s.source === 'wire')!;
+    // Every reporter is on a source, so nothing is free to write.
+    const after = step(paper, [
+      ...STARTING_SOURCES.map((sourceId) => ({ kind: 'cultivate', sourceId }) as Action),
+      ...Array(4).fill({ kind: 'publish', id: wire.id } as Action),
+    ]);
+    expect(line(after, 'Nobody spare to write it.')).toBeUndefined();
+    // Four printed, all of them the wire — the repeated id is the point.
+    expect(after.published.filter((s) => s.id === wire.id)).toHaveLength(4);
+  });
+
+  it('is worth barely more than not publishing at all', () => {
+    const paper = subscribed();
+    const wire = paper.available.find((s) => s.source === 'wire')!;
+    const four = issueGrowth(Array(4).fill(wire));
+    expect(four).toBeGreaterThan(1 - IDLE_DECAY);
+    expect(four).toBeLessThan(1);
+  });
+
+  it('cannot be run by a paper that is not on the wire', () => {
+    // Reachable only by construction: the desk is only ever given a wire item
+    // while the subscription is live.
+    const paper = subscribed();
+    const wire = paper.available.find((s) => s.source === 'wire')!;
+    const off: PaperState = { ...paper, subscribed: false };
+    const after = step(off, [{ kind: 'publish', id: wire.id }]);
+    expect(line(after, 'The wire is not yours to run.')).toBeDefined();
+    expect(after.published).toHaveLength(0);
   });
 });
 
