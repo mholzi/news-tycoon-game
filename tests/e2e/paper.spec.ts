@@ -251,6 +251,43 @@ test('the free-reporter figure counts what the rules will accept', async ({ page
   await expect(page.locator('#reporters')).toHaveText('1/3');
 });
 
+test('an issue is built as a lead and an inside, and can be taken apart again', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+
+  // Day 1: take the wire and buy a story, so day 2 opens with three things on
+  // the desk — the advertorial, the stringer, and a wire item.
+  await expect(page.locator('#tomorrow-empty')).toBeVisible();
+  await page.locator('#wire').click();
+  await page.locator('#buy-stringer').click();
+  await page.locator('#next-day').click();
+
+  const stringer = page.locator('#available .article[data-source="stringer"] .publish');
+  const advertorial = page.locator('#available .article[data-source="advertorial"] .publish');
+  const wire = page.locator('#available .article[data-source="wire"] .publish');
+  await expect(stringer).toHaveCount(1);
+
+  // Three reporters, none working a source. The stringer leads, the advertorial
+  // and the wire item go inside. Only the first two cost a reporter.
+  await stringer.click();
+  await advertorial.click();
+  await wire.click();
+
+  await expect(page.locator('#tomorrow-empty')).toBeHidden();
+  await expect(page.locator('#tomorrow .tomorrow-slot')).toHaveCount(3);
+  await expect(page.locator('#tomorrow .tomorrow-slot').first()).toHaveAttribute('data-role', 'lead');
+  await expect(page.locator('#tomorrow .tomorrow-slot').nth(1)).toHaveAttribute('data-role', 'inside');
+  await expect(page.locator('#tomorrow-slots')).toHaveText('1');
+
+  // Take the middle one out by its own button, not by id.
+  await page.locator('#tomorrow .tomorrow-slot').nth(1).locator('.remove').click();
+  await expect(page.locator('#tomorrow .tomorrow-slot')).toHaveCount(2);
+  await expect(page.locator('#tomorrow-slots')).toHaveText('2');
+
+  await page.locator('#next-day').click();
+  await expect(page.locator('#tomorrow-empty')).toBeVisible();
+});
+
 test('a tip already under check is not offered again the next morning', async ({ page }) => {
   await serveFeed(page);
   await page.goto('/');

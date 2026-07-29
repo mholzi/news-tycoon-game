@@ -45,6 +45,9 @@ const RUNS: readonly (readonly [string, number, number, PolicyUses])[] = [
   ['stringer-only', 3, 0, { stringer: true }],
   ['mixed', 3, 1, { wire: true, stringer: true, advertorial: true, checkTips: true, unbidden: true }],
   ['mixed-blind', 3, 1, { wire: true, stringer: true, advertorial: true, unbidden: true }],
+  ['multi', 3, 1, { wire: true, stringer: true, advertorial: true, checkTips: true, unbidden: true, multiStory: true }],
+  ['multi-4', 4, 1, { wire: true, stringer: true, advertorial: true, checkTips: true, unbidden: true, multiStory: true }],
+  ['multi-6', 6, 1, { wire: true, stringer: true, advertorial: true, checkTips: true, unbidden: true, multiStory: true }],
 ];
 
 for (const [name, reporters, cultivators, uses] of RUNS) {

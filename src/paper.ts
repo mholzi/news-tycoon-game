@@ -138,6 +138,29 @@ export const COVER_PRICE_PENCE = 2;
 export const MARGIN_SHARE = 0.25;
 export const IDLE_DECAY = 0.005;
 export const PUBLISH_GROWTH = 0.07;
+
+/**
+ * What an inside story is worth, as a share of its surplus over 1.
+ *
+ * An issue is a lead and an inside. The lead brings its growth in full; the first
+ * inside story brings a third of whatever it has above 1, the second a ninth, and
+ * so on. The exponent starts at 1, not 0 — at 0 the first inside story counts
+ * full weight and an all-planted issue reaches 1.103340, above an investigation.
+ *
+ * A story below 1 therefore brings a NEGATIVE share, which is the whole reason
+ * this shape was chosen: filling the inside with wire copy makes the issue worse,
+ * and nobody had to price that in. It falls out.
+ *
+ * **The bound.** The series converges, so an inside of unlimited length has a
+ * supremum. That supremum must stay under an investigation's 1.07 or three
+ * mediocre stories beat one good one, which is the thing this feature exists to
+ * prevent. The worst case is planted at 1.04, not stringer at 1.03, and the
+ * crossing is 0.416949 — a first draft of the spec derived 0.75 from stringers
+ * alone and was wrong. At 1/3 the all-planted supremum is 1.060904, a margin of
+ * 0.009096. Any value in (0, 0.416949) would do; a third is not special.
+ */
+export const INSIDE_SHARE = 1 / 3;
+
 export const COPIES_FLOOR = 2_000;
 export const COPIES_CEILING = 80_000;
 export const SOURCE_STEP_PENCE = 2_500;
@@ -175,6 +198,25 @@ export const LEVERS = ['access', 'money', 'law'] as const;
  */
 export function billBasisPence(): number {
   return Math.round(BILL_BASIS_COPIES * COVER_PRICE_PENCE * MARGIN_SHARE);
+}
+
+/**
+ * What one issue does to circulation.
+ *
+ * `issue[0]` leads and brings its growth whole; everything after it is the inside
+ * and brings `INSIDE_SHARE^k` of its surplus over 1, k counting from 1. An empty
+ * issue is a day with no paper, which decays.
+ *
+ * Exported as a pure function rather than inlined into `playDay` so the bound in
+ * `INSIDE_SHARE` can be tested directly, without driving a campaign to reach the
+ * states it describes — most of which the publishing rules make unreachable in
+ * play anyway.
+ */
+export function issueGrowth(issue: readonly Story[]): number {
+  if (issue.length === 0) return 1 - IDLE_DECAY;
+  return issue
+    .slice(1)
+    .reduce((acc, story, i) => acc * (1 + (story.growth - 1) * INSIDE_SHARE ** (i + 1)), issue[0].growth);
 }
 
 export type PoolIssue =
@@ -323,21 +365,34 @@ export function playDay(
   // One pass, deliberately. Three passes by kind meant [work courts, let one go]
   // and [let one go, work courts] produced identical days, which is not what the
   // screen promises and not what anybody would expect from a list they wrote.
-  let cultivatedToday = 0;
+  let spentToday = 0;
   let boughtToday = false;
   const workedThisDay = new Set<string>();
   const checkedToday = new Set<string>();
-  let publishedToday: Story | null = null;
+
+  /**
+   * Tomorrow's issue. The first entry leads, the rest are the inside, in the
+   * order the plan wrote them — which is why plan order is load-bearing here as
+   * well as for hire-then-fire.
+   */
+  const issue: Story[] = [];
 
   /**
    * Reporters with nothing on today. Read at four places, so it is written once.
    *
-   * A reporter checking a tip is as busy as one on a story, and one worked a
-   * source this morning is busy for the rest of the day. Spelling this out four
-   * times is how the `checking` term came to be missing from one of them.
+   * A reporter checking a tip is as busy as one on a story, one who worked a
+   * source this morning is busy for the rest of the day, and — since the issue
+   * grew past one story — so is one who wrote today. `spentToday` covers
+   * cultivating and writing together: one budget, because a reporter who files
+   * copy does not also spend the day on a source.
+   *
+   * That single budget is a decision with a price. It reaches the assignment loop
+   * below, so printing competes with putting somebody on a lead, and every
+   * calibration row moved when it landed. The alternative kept the rows frozen
+   * and let three reporters do six jobs a day.
    */
   const free = (): number =>
-    next.reporters - next.running.length - next.checking.length - cultivatedToday;
+    next.reporters - next.running.length - next.checking.length - spentToday;
 
   for (const action of actions) {
     switch (action.kind) {
@@ -415,7 +470,7 @@ export function playDay(
         }
 
         workedThisDay.add(source.id);
-        cultivatedToday += 1;
+        spentToday += 1;
         next.cashPence -= SOURCE_STEP_PENCE;
         source.steps += 1;
         say(`Cultivated ${source.id}`, -SOURCE_STEP_PENCE);
@@ -504,21 +559,52 @@ export function playDay(
         break;
       }
 
+      // An issue, not a slot. The refusal order below is load-bearing: the
+      // lookup runs first because every rule after it reads `story.source`, so a
+      // second advertorial on a day with nobody free is refused as a second
+      // advertorial, not for want of a reporter.
       case 'publish': {
-        if (publishedToday !== null) {
-          say('Only one story can lead.');
-          break;
-        }
         const at = next.available.findIndex((s) => s.id === action.id);
         if (at === -1) {
           say('That story is not ready.');
           break;
         }
         const story = next.available[at];
-        // The advertorial is never consumed: it is an offer, not a scoop.
-        if (story.source !== 'advertorial') next.available.splice(at, 1);
+
+        // Agency copy is already written, so it costs no reporter and there is no
+        // limit on how much of it fills an issue. What it costs instead is that
+        // it is nobody's scoop: at 0.998 it holds a paper open and builds
+        // nothing, and in the inside it drags the issue down.
+        if (story.source === 'wire') {
+          if (!next.subscribed) {
+            say('The wire is not yours to run.');
+            break;
+          }
+        } else if (
+          // The advertiser buys one page, not the whole paper. Without this the
+          // one-publish guard's removal would let three reporters print the
+          // advertorial three times for three fees.
+          story.source === 'advertorial' &&
+          issue.some((s) => s.source === 'advertorial')
+        ) {
+          say('The advertiser gets one page.');
+          break;
+        } else {
+          if (free() <= 0) {
+            say('Nobody spare to write it.');
+            break;
+          }
+          spentToday += 1;
+        }
+
+        // Neither the advertorial nor the wire is consumed: both are standing
+        // offers rather than scoops, and the wire may run more than once in one
+        // issue, so `published` carries repeated ids on purpose.
+        if (story.source !== 'advertorial' && story.source !== 'wire') {
+          next.available.splice(at, 1);
+        }
         next.published.push(story);
-        publishedToday = story;
+        issue.push(story);
 
         if (story.consequence !== null) {
           next.bills.push({
@@ -577,9 +663,10 @@ export function playDay(
     }
   }
 
-  // The story decides the day's circulation, not a single constant: an
-  // advertorial costs readers, a false tip costs more, wire copy barely holds.
-  next.copies *= publishedToday !== null ? publishedToday.growth : 1 - IDLE_DECAY;
+  // The whole issue decides the day's circulation, not one story and not a
+  // constant: an advertorial costs readers, a false tip costs more, wire copy
+  // barely holds, and an inside padded with any of them drags the lead down.
+  next.copies *= issueGrowth(issue);
 
   // 7. Clamp.
   next.copies = clamp(next.copies);

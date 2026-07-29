@@ -310,6 +310,18 @@ button.cta:disabled {
   gap: var(--space-2);
 }
 
+/* A slot in tomorrow's issue. Same column rhythm as a story card. */
+.tomorrow-slot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The lead is the front page and reads like it; the inside is quieter. */
+.tomorrow-slot[data-role='inside'] .voice-who {
+  color: var(--ink-soft);
+}
+
 /* An unchecked tip is the one card carrying a risk, so it is legible as such
    without hinting at the answer: the outline says "not stood up yet", and says
    the same whether the tip is true or false. */

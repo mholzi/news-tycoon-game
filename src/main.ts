@@ -68,6 +68,9 @@ function start(pool: Playable[]): void {
   const sources = el<HTMLUListElement>('sources');
   const planned = el('planned');
   const clearPlan = el<HTMLButtonElement>('clear-plan');
+  const tomorrow = el<HTMLOListElement>('tomorrow');
+  const tomorrowEmpty = el('tomorrow-empty');
+  const tomorrowSlots = el('tomorrow-slots');
   const desk = el('desk');
   const overBox = el('over');
   const overText = el('over-text');
@@ -127,6 +130,14 @@ function start(pool: Playable[]): void {
       if (action.kind === 'cultivate' && !worked.has(action.sourceId)) {
         worked.add(action.sourceId);
         spent += 1;
+      }
+      // Writing costs a reporter now, on the same budget as the rest. Agency
+      // copy does not: it is already written. An id no longer on the desk is
+      // charged anyway — `playDay` will refuse it, and greying a control early
+      // beats the screen re-deriving the rules.
+      if (action.kind === 'publish') {
+        const story = state.available.find((s) => s.id === action.id);
+        if (story?.source !== 'wire') spent += 1;
       }
     }
     return { free: heads - state.running.length - state.checking.length - spent, heads };
@@ -241,6 +252,43 @@ function start(pool: Playable[]): void {
       available.append(li);
     }
     availableEmpty.hidden = state.available.length > 0;
+
+    // Tomorrow's issue, in the order the plan will run it: the first publish
+    // leads, the rest are the inside. Removing is by plan index, not by id —
+    // four queued wire items are four identical actions.
+    tomorrow.replaceChildren();
+    const queued = plan
+      .map((action, index) => ({ action, index }))
+      .filter((entry) => entry.action.kind === 'publish');
+    for (const [slot, entry] of queued.entries()) {
+      const id = (entry.action as { id: string }).id;
+      const li = document.createElement('li');
+      li.className = 'tomorrow-slot';
+      li.dataset.role = slot === 0 ? 'lead' : 'inside';
+      li.dataset.index = String(entry.index);
+
+      const who = document.createElement('span');
+      who.className = 'voice-who';
+      who.textContent = slot === 0 ? 'leads' : 'inside';
+      const says = document.createElement('span');
+      says.className = 'voice-says';
+      says.textContent = headlines.get(id) ?? id;
+
+      const drop = document.createElement('button');
+      drop.type = 'button';
+      drop.className = 'cta remove';
+      drop.textContent = 'Take it out';
+      drop.setAttribute('aria-label', `Take out: ${headlines.get(id) ?? id}`);
+      drop.addEventListener('click', () => {
+        plan.splice(entry.index, 1);
+        render();
+      });
+
+      li.append(who, says, drop);
+      tomorrow.append(li);
+    }
+    tomorrowEmpty.hidden = queued.length > 0;
+    tomorrowSlots.textContent = String(Math.max(0, freeAfterPlan()));
 
     sources.replaceChildren();
     for (const source of state.sources) {

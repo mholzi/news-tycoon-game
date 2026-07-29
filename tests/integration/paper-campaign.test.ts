@@ -141,11 +141,11 @@ describe('the other six sources', () => {
     const blind = play(1, 3, every);
     const careful = play(1, 3, { ...every, checkTips: true });
 
-    // Checking buys 23 days. It does not buy survival — see the row below.
+    // Checking buys 15 days. It does not buy survival — see the row below.
     expect(blind.over).toBe(true);
-    expect(blind.day).toBe(25);
+    expect(blind.day).toBe(26);
     expect(careful.over).toBe(true);
-    expect(careful.day).toBe(48);
+    expect(careful.day).toBe(41);
     expect(careful.day).toBeGreaterThan(blind.day);
 
     // The claim in the title. Without this the test passed while `pick` filtered
@@ -155,12 +155,10 @@ describe('the other six sources', () => {
   });
 
   it('carries a paper that uses everything further than one that guesses', () => {
-    // Was `survives` at 79,840 copies / £60,840.47, and only because a checking
-    // policy could never print the tips it paid to check. With that fixed the
-    // same policy closes on day 48: one publication moving by a day lands the
-    // bills for fixture-1936-5 and stringer-38 on the same morning, and the
-    // till cannot take both. The economy is a knife edge here, which is the
-    // thing worth knowing and was hidden while the row read `survives`.
+    // Was `survives` at 79,840 copies, and only because a checking policy could
+    // never print the tips it paid to check. Fixing that dropped it to day 48;
+    // charging a reporter for writing dropped it again to 41, because printing
+    // now competes with cultivating and with putting somebody on a lead.
     const mixed = play(1, 3, {
       wire: true,
       stringer: true,
@@ -169,9 +167,34 @@ describe('the other six sources', () => {
       unbidden: true,
     });
     expect(mixed.over).toBe(true);
-    expect(mixed.day).toBe(48);
-    expect(Math.round(mixed.copies)).toBe(39_295);
-    expect(mixed.cashPence).toBe(-6_851);
+    expect(mixed.day).toBe(41);
+    expect(Math.round(mixed.copies)).toBe(31_884);
+    expect(mixed.cashPence).toBe(-3_287);
+  });
+
+  it('gains almost nothing from an inside, because there is never a hand to fill it', () => {
+    // The finding this feature was built to test, recorded rather than tuned
+    // away. `multiStory` lets a policy fill the inside; at the only staffing
+    // that survives anything, it fills it on 20% of days and never with more
+    // than one story — so 41 days become 41 days and one extra story runs.
+    const every = { wire: true, stringer: true, advertorial: true, checkTips: true, unbidden: true };
+    const careful = play(1, 3, every);
+    const multi = play(1, 3, { ...every, multiStory: true });
+
+    expect(multi.day).toBe(careful.day);
+    expect(multi.published.length).toBe(careful.published.length + 1);
+    expect(multi.over).toBe(true);
+    expect(Math.round(multi.copies)).toBe(31_004);
+    expect(multi.cashPence).toBe(-4_345);
+  });
+
+  it('leaves a bigger newsroom room for an inside it cannot pay for', () => {
+    // The vice: capacity for an inside rises with headcount and survival falls
+    // faster. Six reporters can fill an issue every single day and are broke
+    // inside a fortnight.
+    const every = { wire: true, stringer: true, advertorial: true, checkTips: true, unbidden: true, multiStory: true };
+    expect(play(1, 3, every).day).toBeGreaterThan(play(1, 4, every).day);
+    expect(play(1, 4, every).day).toBeGreaterThan(play(1, 6, every).day);
   });
 
   it('leaves the existing economy exactly where it was', () => {

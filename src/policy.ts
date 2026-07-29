@@ -46,6 +46,15 @@ export interface PolicyUses {
    * touch the existing economy, so the default has to be off.
    */
   unbidden?: boolean;
+  /**
+   * Fill the inside as well as the lead.
+   *
+   * Off by default, and for the same reason `unbidden` is: with it off a policy
+   * queues exactly one publish, so the difference between the old rows and the
+   * new ones is attributable to the shared reporter budget alone rather than to
+   * two changes at once.
+   */
+  multiStory?: boolean;
 }
 
 /**
@@ -61,24 +70,57 @@ export interface PolicyUses {
  * printed. The row it produced was labelled as the reward for checking and
  * measured not printing tips at all. Filter on the thing the check changes.
  */
-function pick(available: readonly Story[], uses: PolicyUses): Story | undefined {
-  const allowed = available.filter((s) => {
-    if (s.source === 'advertorial') return uses.advertorial === true;
-    if (s.source === 'wire') return uses.wire === true;
-    if (s.source === 'stringer') return uses.stringer === true;
-    if (s.source === 'planted' || s.source === 'follow') return uses.unbidden === true;
-    if (s.source === 'tip') {
-      if (uses.unbidden !== true) return false;
-      // Checking is what makes it printable; not checking is the gamble.
-      return uses.checkTips === true ? s.unverified !== true : true;
-    }
-    return true;
-  });
-  // `filter` already returned a fresh array, so this sorts nothing the caller
-  // can see.
-  return allowed.sort((a, b) =>
-    b.growth !== a.growth ? b.growth - a.growth : a.id < b.id ? -1 : 1,
-  )[0];
+function allows(story: Story, uses: PolicyUses): boolean {
+  if (story.source === 'advertorial') return uses.advertorial === true;
+  if (story.source === 'wire') return uses.wire === true;
+  if (story.source === 'stringer') return uses.stringer === true;
+  if (story.source === 'planted' || story.source === 'follow') return uses.unbidden === true;
+  if (story.source === 'tip') {
+    if (uses.unbidden !== true) return false;
+    // Checking is what makes it printable; not checking is the gamble.
+    return uses.checkTips === true ? story.unverified !== true : true;
+  }
+  return true;
+}
+
+const bestFirst = (a: Story, b: Story): number =>
+  b.growth !== a.growth ? b.growth - a.growth : a.id < b.id ? -1 : 1;
+
+function pickLead(available: readonly Story[], uses: PolicyUses): Story | undefined {
+  return available.filter((s) => allows(s, uses)).sort(bestFirst)[0];
+}
+
+/**
+ * What else goes in, after the lead is chosen.
+ *
+ * Two rules here are asymmetric with `pickLead` on purpose.
+ *
+ * **No unverified tips.** `pickLead` will run one blind when `checkTips` is off —
+ * that is the `mixed-blind` gamble, and it is deliberate. Sorting the inside by
+ * `growth` would be different: it reads the answer the check is supposed to buy.
+ * So the lead may gamble and the inside never does.
+ *
+ * **No agency copy.** It is unlimited and free of reporters, so "append wire
+ * until full" has no stopping condition — and under `INSIDE_SHARE` a story below
+ * 1 subtracts, so padding with it is self-harm. A calibration policy models a
+ * competent player. Wire-padding as a measured strategy needs its own capped row.
+ */
+function fillInside(
+  available: readonly Story[],
+  uses: PolicyUses,
+  capacity: number,
+): Story[] {
+  if (uses.multiStory !== true || capacity <= 0) return [];
+  return available
+    .filter(
+      (s) =>
+        allows(s, uses) &&
+        s.unverified !== true &&
+        s.source !== 'wire' &&
+        s.growth > 1,
+    )
+    .sort(bestFirst)
+    .slice(0, capacity);
 }
 
 export const CALIBRATION_DAYS = 400;
@@ -119,10 +161,12 @@ export function playPolicy(
       actions.push({ kind: 'cultivate', sourceId: STARTING_SOURCES[i] });
     }
 
+    let checksQueued = 0;
     if (uses.checkTips === true) {
       for (const story of state.available) {
         if (story.unverified && !state.checking.some((c) => c.id === story.id)) {
           actions.push({ kind: 'check', id: story.id });
+          checksQueued += 1;
         }
       }
     }
@@ -135,8 +179,32 @@ export function playPolicy(
       actions.push({ kind: 'buy-stringer' });
     }
 
-    const best = pick(state.available, uses);
-    if (best !== undefined) actions.push({ kind: 'publish', id: best.id });
+    const lead = pickLead(state.available, uses);
+    if (lead !== undefined) {
+      actions.push({ kind: 'publish', id: lead.id });
+
+      // What is left for the inside once this day's other work is paid for.
+      // `checksQueued` is not already inside `state.checking` — these actions were
+      // built against the start-of-day state and only reach `next.checking` when
+      // `playDay` runs, where `free()` then sees them. Leaving the term out
+      // over-states capacity for every checking policy, and `playDay` would refuse
+      // the surplus rather than the policy never asking.
+      const capacity =
+        state.reporters -
+        state.running.length -
+        state.checking.length -
+        cultivators -
+        checksQueued -
+        1;
+
+      for (const story of fillInside(
+        state.available.filter((s) => s.id !== lead.id),
+        uses,
+        capacity,
+      )) {
+        actions.push({ kind: 'publish', id: story.id });
+      }
+    }
 
     state = playDay(state, pool, actions);
     if (state.over) return state;
