@@ -17,7 +17,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { assertPlayFeed, toPlayable, type PlayFeed, type Playable } from '../src/feed';
-import { CALIBRATION_DAYS, playPolicy } from '../src/policy';
+import { CALIBRATION_DAYS, playPolicy, type PolicyUses } from '../src/policy';
 import { formatCopies, formatTakings } from '../src/ledger';
 
 
@@ -29,21 +29,29 @@ function pool(file: string): Playable[] {
 const episodes = pool('pool-36.json');
 
 console.log(`pool: ${episodes.length} episodes, ${CALIBRATION_DAYS} days simulated\n`);
-console.log('reporters  cultivating  outcome');
+console.log('policy             staff  outcome');
 
-for (const [reporters, cultivators] of [
-  [3, 0],
-  [4, 0],
-  [6, 0],
-  [3, 1],
-  [4, 1],
-  [6, 1],
-  [4, 2],
-] as const) {
-  const end = playPolicy(episodes, cultivators, { reporters });
+const RUNS: readonly (readonly [string, number, number, PolicyUses])[] = [
+  ['nothing', 3, 0, {}],
+  ['nothing-4', 4, 0, {}],
+  ['nothing-6', 6, 0, {}],
+  ['investigations', 3, 1, {}],
+  ['investigations-4', 4, 1, {}],
+  ['investigations-6', 6, 1, {}],
+  ['investigations-2c', 4, 2, {}],
+  ['wire-only', 3, 0, { wire: true }],
+  ['advertorial-only', 3, 0, { advertorial: true }],
+  ['unbidden-only', 3, 0, { unbidden: true }],
+  ['stringer-only', 3, 0, { stringer: true }],
+  ['mixed', 3, 1, { wire: true, stringer: true, advertorial: true, checkTips: true, unbidden: true }],
+  ['mixed-blind', 3, 1, { wire: true, stringer: true, advertorial: true, unbidden: true }],
+];
+
+for (const [name, reporters, cultivators, uses] of RUNS) {
+  const end = playPolicy(episodes, cultivators, { reporters }, CALIBRATION_DAYS, uses);
   const outcome = end.over
     ? `broke on day ${end.day}`
     : `survives: ${formatCopies(end.copies)} copies, ` +
       `${end.published.length} published, ${formatTakings(end.cashPence)}`;
-  console.log(`${String(reporters).padStart(9)}  ${String(cultivators).padStart(11)}  ${outcome}`);
+  console.log(`${name.padEnd(18)} ${String(reporters)}r ${String(cultivators)}c  ${outcome}`);
 }

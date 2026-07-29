@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { assertPlayFeed, toPlayable, type PlayFeed, type Playable } from '../../src/feed';
-import { CALIBRATION_DAYS, playPolicy } from '../../src/policy';
+import { CALIBRATION_DAYS, playPolicy, type PolicyUses } from '../../src/policy';
 import {
   COPIES_CEILING,
   COPIES_FLOOR,
@@ -36,8 +36,14 @@ const pool: Playable[] = assertPlayFeed(
   ) as PlayFeed,
 ).episodes.map(toPlayable);
 
-const play = (cultivators: number, reporters?: number) =>
-  playPolicy(pool, cultivators, reporters === undefined ? {} : { reporters });
+const play = (cultivators: number, reporters?: number, uses: PolicyUses = {}) =>
+  playPolicy(
+    pool,
+    cultivators,
+    reporters === undefined ? {} : { reporters },
+    CALIBRATION_DAYS,
+    uses,
+  );
 
 describe('the shape of the economy', () => {
   it('kills a bigger payroll sooner', () => {
@@ -105,11 +111,68 @@ describe('the calibration', () => {
   });
 });
 
+describe('the other six sources', () => {
+  // Relations first, as everywhere else here. The figures beneath them come from
+  // `npx vite-node scripts/simulate.ts`.
+
+  it('makes the wire a floor rather than a living', () => {
+    const wire = play(0, 3, { wire: true });
+    expect(wire.over).toBe(true);
+    expect(wire.day).toBeGreaterThan(play(0).day);
+    expect(wire.day).toBe(138);
+  });
+
+  it('never lets an advertorial keep a paper alive', () => {
+    const ads = play(0, 3, { advertorial: true });
+    expect(ads.over).toBe(true);
+    expect(ads.day).toBe(137);
+  });
+
+  it('leaves an advertorial paper richer and less read than one that prints nothing', () => {
+    // Compared on the earlier of the two closing days, which is the idle one.
+    const idle = play(0);
+    const ads = playPolicy(pool, 0, { reporters: 3 }, idle.day, { advertorial: true });
+    expect(ads.cashPence).toBeGreaterThan(idle.cashPence);
+    expect(ads.copies).toBeLessThan(idle.copies);
+  });
+
+  it('punishes running tips blind and rewards checking them', () => {
+    const every: PolicyUses = { wire: true, stringer: true, advertorial: true, unbidden: true };
+    const blind = play(1, 3, every);
+    const careful = play(1, 3, { ...every, checkTips: true });
+    expect(blind.over).toBe(true);
+    expect(blind.day).toBe(25);
+    expect(careful.over).toBe(false);
+  });
+
+  it('carries a paper that uses everything and checks its tips', () => {
+    const mixed = play(1, 3, {
+      wire: true,
+      stringer: true,
+      advertorial: true,
+      checkTips: true,
+      unbidden: true,
+    });
+    expect(mixed.over).toBe(false);
+    expect(Math.round(mixed.copies)).toBe(79_840);
+    expect(mixed.cashPence).toBe(6_084_047);
+  });
+
+  it('leaves the existing economy exactly where it was', () => {
+    // Criterion 13. Plants and tips still arrive under a flags-false policy;
+    // what changed is that such a policy does not publish them.
+    expect(play(0).day).toBe(112);
+    expect(play(1).published).toHaveLength(36);
+    expect(play(1).cashPence).toBe(4_520_688);
+  });
+});
+
 describe('the archive', () => {
   it('is the thing that runs out, and the paper survives it', () => {
     const end = play(1);
     expect(end.published).toHaveLength(pool.length);
-    expect(end.available).toHaveLength(0);
+    // The advertorial is permanent, so the desk is never truly empty.
+    expect(end.available.filter((s) => s.source === 'investigation')).toHaveLength(0);
     expect(end.cashPence).toBeGreaterThan(0);
   });
 });
