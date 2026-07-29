@@ -3,7 +3,12 @@ import './game.css';
 import { loadEpisodes, type Playable } from './feed';
 import { formatCopies, formatPrice, formatTakings } from './ledger';
 import { playDay, SOURCE_STEPS_TO_LEAD, startPaper, validatePool, type Action } from './paper';
-import { STRINGER_PENCE, WIRE_PENCE_PER_DAY } from './sources';
+import {
+  STORY_SHELF_DAYS,
+  STRINGER_PENCE,
+  TIP_CHECK_DAYS,
+  WIRE_PENCE_PER_DAY,
+} from './sources';
 
 /**
  * The screen, and nothing else.
@@ -144,7 +149,10 @@ function start(pool: Playable[]): void {
       });
       li.append(button);
 
-      if (story.unverified) {
+      // Offered only on the days it can actually report. `playDay` refuses a
+      // check that would outlive its tip; the button has to agree with it, or
+      // the screen invites a move the rules reject.
+      if (story.unverified && state.day + TIP_CHECK_DAYS < story.offeredOn + STORY_SHELF_DAYS) {
         const check = document.createElement('button');
         check.type = 'button';
         check.className = 'cta check';
