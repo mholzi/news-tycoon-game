@@ -18,8 +18,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { assertPlayFeed, toPlayable, type PlayFeed, type Playable } from '../src/feed';
 import { CALIBRATION_DAYS, playPolicy } from '../src/policy';
-import { RUNS } from '../src/runs';
-import { formatCopies, formatTakings } from '../src/ledger';
+import { outcomeLine, RUNS } from '../src/runs';
 
 
 function pool(file: string): Playable[] {
@@ -34,13 +33,6 @@ console.log('policy             staff  outcome');
 
 for (const [name, reporters, cultivators, uses] of RUNS) {
   const end = playPolicy(episodes, cultivators, { reporters }, CALIBRATION_DAYS, uses);
-  // Won first: a won paper is also `over`, so reading `over` before `won` would
-  // print every win as a closure.
-  const outcome = end.won
-    ? `won on day ${end.day}`
-    : end.over
-      ? `broke on day ${end.day}`
-      : `survives: ${formatCopies(end.copies)} copies, ` +
-        `${end.published.length} published, ${formatTakings(end.cashPence)}`;
+  const outcome = outcomeLine(end);
   console.log(`${name.padEnd(18)} ${String(reporters)}r ${String(cultivators)}c  ${outcome}`);
 }
