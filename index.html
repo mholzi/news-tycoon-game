@@ -61,8 +61,12 @@
           </div>
         </div>
 
+        <!-- `tabindex="-1"` on the eyebrow so `Start again` can put focus back
+             on the desk. Restarting hides `#over` and with it the button just
+             clicked, which is the same orphaned-focus problem the ending panel
+             has, in the other direction. -->
         <div class="issue" id="desk">
-          <p class="eyebrow">Tomorrow's paper</p>
+          <p class="eyebrow" id="desk-eyebrow" tabindex="-1">Tomorrow's paper</p>
 
           <div id="step-available">
             <h2>What can run?</h2>
@@ -121,10 +125,15 @@
         </div>
 
         <!-- Both endings share this panel; the heading and the text are set from
-             `state.won`. The markup keeps the losing wording so a run with no
-             JavaScript-set text still reads as something rather than as a gap. -->
+             `state.won` before it is revealed. The heading text here is a
+             placeholder and NOT a no-JavaScript fallback — this panel sits
+             inside `#game`, which stays hidden until `boot()` succeeds, so
+             nobody ever reads it. Treat it as scaffolding: the wording that
+             ships comes from CLOSED_HEADING / WON_HEADING in `src/paper.ts`.
+             `tabindex="-1"` so `render()` can move focus here when the campaign
+             ends; the same render hides the button that was just clicked. -->
         <div class="issue" id="over" hidden>
-          <h2 id="over-heading">The paper has closed</h2>
+          <h2 id="over-heading" tabindex="-1">The paper has closed</h2>
           <p id="over-text"></p>
           <div class="choices">
             <button type="button" class="cta" id="again">Start again</button>
