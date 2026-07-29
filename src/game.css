@@ -193,13 +193,16 @@ a {
   font-size: var(--step-1);
 }
 
+/* Between cards, and it has to stay larger than the gap inside a card
+   (`.article`, --space-2) or a Check button reads as belonging to the story
+   below it rather than its own. */
 .voices {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
 .choices {
@@ -288,14 +291,21 @@ button.cta {
 }
 
 /* An unchecked tip gets a second control beside it. Deliberately plain: nothing
-   about the way it is drawn may hint at whether it stands up. */
-.article .check {
-  margin-top: var(--space-2);
-}
+   about the way it is drawn may hint at whether it stands up.
 
-.article,
-.source {
+   No margin-top: in a flex column it adds to the container `gap`, which put
+   1.4rem between a headline and its own Check button while `.voices` puts only
+   0.7rem between one card and the next. Proximity then grouped the button with
+   the story below it. The inside gap has to stay smaller than the outside one. */
+.article {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+/* An unchecked tip is the one card carrying a risk, so it is legible as such
+   without hinting at the answer: the outline says "not stood up yet", and says
+   the same whether the tip is true or false. */
+.article[data-unverified='true'] .voice {
+  border-style: dashed;
 }

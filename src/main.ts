@@ -67,6 +67,7 @@ function start(pool: Playable[]): void {
   const availableEmpty = el('available-empty');
   const sources = el<HTMLUListElement>('sources');
   const planned = el('planned');
+  const clearPlan = el<HTMLButtonElement>('clear-plan');
   const desk = el('desk');
   const overBox = el('over');
   const overText = el('over-text');
@@ -100,15 +101,43 @@ function start(pool: Playable[]): void {
     }
   }
 
+  /**
+   * Reporters still free once the plan is taken into account.
+   *
+   * The committed figure alone let the player queue a day that half-executed:
+   * three checks against one spare hand, with the refusal only arriving after
+   * `Print it`. `playDay` counts a reporter worked on a source this morning as
+   * busy for the rest of the day, and this has to agree with it.
+   */
+  function freeAfterPlan(): number {
+    const committed = plan.filter(
+      (a) => a.kind === 'check' || a.kind === 'cultivate',
+    ).length;
+    return state.reporters - state.running.length - state.checking.length - committed;
+  }
+
+  /** Whether the wire will be on tomorrow, given what is already queued. */
+  function wireAfterPlan(): boolean {
+    let on = state.subscribed;
+    for (const action of plan) {
+      if (action.kind === 'subscribe') on = true;
+      if (action.kind === 'unsubscribe') on = false;
+    }
+    return on;
+  }
+
   function render(): void {
     cash.textContent = formatTakings(state.cashPence);
     copies.textContent = formatCopies(state.copies);
     price.textContent = formatPrice(state.pricePence);
-    // A reporter checking a tip is as busy as one on a story.
-    reporters.textContent = `${
-      state.reporters - state.running.length - state.checking.length
-    }/${state.reporters}`;
-    wire.textContent = state.subscribed
+    // A reporter checking a tip is as busy as one on a story, and so is one the
+    // plan has already spoken for.
+    reporters.textContent = `${Math.max(0, freeAfterPlan())}/${state.reporters}`;
+    // Labelled from what the plan will do, not from what has been printed. The
+    // committed state alone made the button contradict the click that had just
+    // queued a change: press Take the wire, and it still read Take the wire.
+    const wireOn = wireAfterPlan();
+    wire.textContent = wireOn
       ? `Drop the wire (${formatTakings(WIRE_PENCE_PER_DAY)} a day)`
       : `Take the wire (${formatTakings(WIRE_PENCE_PER_DAY)} a day)`;
     buyStringer.textContent = `Buy a story (${formatTakings(STRINGER_PENCE)})`;
@@ -134,6 +163,8 @@ function start(pool: Playable[]): void {
       const li = document.createElement('li');
       li.className = 'article';
       li.dataset.source = story.source;
+      // Drawn differently, but identically for a true tip and a false one.
+      li.dataset.unverified = String(story.unverified);
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'voice publish';
@@ -164,10 +195,16 @@ function start(pool: Playable[]): void {
         check.type = 'button';
         check.className = 'cta check';
         check.dataset.id = story.id;
-        check.textContent = 'Check it';
-        // Every check button reads the same, so the accessible name has to name
-        // the tip. The headline says nothing about whether it stands up.
+        // Priced like the two buttons beside it. A check spends the same scarce
+        // thing an investigation does, and saying so only after `Print it` —
+        // via "Nobody spare to check it." — is telling the player too late.
+        check.textContent = `Check it (${TIP_CHECK_DAYS} days, one reporter)`;
+        // Every check button otherwise reads the same, so the accessible name
+        // has to name the tip. The headline says nothing about whether it
+        // stands up, so this gives away no more than the card already does.
         check.setAttribute('aria-label', `Check: ${story.headline}`);
+        const queued = plan.some((a) => a.kind === 'check' && a.id === story.id);
+        check.disabled = queued || freeAfterPlan() <= 0;
         check.addEventListener('click', () => {
           plan.push({ kind: 'check', id: story.id });
           render();
@@ -207,7 +244,8 @@ function start(pool: Playable[]): void {
     planned.textContent =
       plan.length === 0
         ? 'Nothing planned for tomorrow.'
-        : `Tomorrow: ${plan.map(describe).join(', ')}. (Tap to clear.)`;
+        : `Tomorrow: ${plan.map(describe).join(', ')}.`;
+    clearPlan.hidden = plan.length === 0;
 
     desk.hidden = state.over;
     overBox.hidden = !state.over;
@@ -220,13 +258,19 @@ function start(pool: Playable[]): void {
 
   // A plan is a list of intentions, so it has to be possible to change your
   // mind. Without this the only way out of a misclick was to play the day.
-  planned.addEventListener('click', () => {
+  clearPlan.addEventListener('click', () => {
     plan = [];
     render();
   });
 
   wire.addEventListener('click', () => {
-    plan.push({ kind: state.subscribed ? 'unsubscribe' : 'subscribe' });
+    // At most one wire action is ever queued, and none at all when the plan
+    // would land back where it started. Pushing the opposite each time instead
+    // left "take the wire, drop the wire" in tomorrow's plan — two ledger lines
+    // for a day on which nothing about the wire changed.
+    const want = !wireAfterPlan();
+    plan = plan.filter((a) => a.kind !== 'subscribe' && a.kind !== 'unsubscribe');
+    if (want !== state.subscribed) plan.push({ kind: want ? 'subscribe' : 'unsubscribe' });
     render();
   });
   buyStringer.addEventListener('click', () => {
