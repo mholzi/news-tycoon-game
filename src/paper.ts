@@ -16,6 +16,7 @@
 
 import type { Playable } from './feed';
 import {
+  ADVERTORIAL_ID,
   FOLLOW_TRIGGERS,
   STORY_SHELF_DAYS,
   STRINGER_PENCE,
@@ -106,6 +107,25 @@ export const START_REPORTERS = 3;
 export const WAGE_PENCE_PER_DAY = 3_000;
 
 /**
+ * The smallest newsroom the rules allow, and the headcount every "can this
+ * source keep a paper alive for ever?" bound must be stated against.
+ *
+ * `fire` used to stop at one, and that made the game unlosable: the advertorial
+ * pays a flat fee while wages scale with heads, so a player who shed two
+ * reporters banked £30 a day at the circulation floor and never closed. The
+ * guard that was supposed to prevent exactly that asserted the bound against
+ * `START_REPORTERS`, which is the headcount you begin with rather than the
+ * lowest one you can reach — a bound on the wrong number is not a bound.
+ *
+ * Fixing it here rather than by repricing the advertorial: at a price low
+ * enough to be safe at one reporter (under £20) the source is never worth
+ * running at any headcount, which deletes the feature instead of bounding it.
+ * The deeper shape — a flat payment against a penalty the floor stops
+ * charging — is bounded here, not removed; see news-tycoon#31.
+ */
+export const MIN_REPORTERS = 3;
+
+/**
  * What a copy costs, flat.
  *
  * Campaigns are decoupled from the centuries (Markus, 2026-07-29): a run is not
@@ -159,7 +179,21 @@ export function billBasisPence(): number {
 
 export type PoolIssue =
   | { code: 'unknown-lever'; slug: string; lever: string }
-  | { code: 'duplicate-slug'; slug: string; count: number };
+  | { code: 'duplicate-slug'; slug: string; count: number }
+  | { code: 'reserved-slug'; slug: string };
+
+/**
+ * The shapes a generated story's id can take.
+ *
+ * `available`, `published` and `bills` are all keyed by `Story.id`, and that id
+ * is an episode slug for an investigation and `<source>-<day>` for everything
+ * else. The two namespaces share one key, so a feed episode called
+ * `advertorial` collides with the permanent one: `publish` resolves by
+ * `findIndex`, hits whichever entry comes first, and the researched story sits
+ * on the desk unpublishable for ever while its slug is consumed and its bill
+ * never fires. Nothing about that is visible to the player.
+ */
+const RESERVED_SLUG = /^(wire|planted|stringer|tip|follow)-\d+$/;
 
 /**
  * What stops a pool being playable. Empty means nothing does.
@@ -174,6 +208,9 @@ export function validatePool(pool: readonly Playable[]): PoolIssue[] {
   for (const episode of pool) {
     if (!(LEVERS as readonly string[]).includes(episode.lever)) {
       issues.push({ code: 'unknown-lever', slug: episode.slug, lever: episode.lever });
+    }
+    if (episode.slug === ADVERTORIAL_ID || RESERVED_SLUG.test(episode.slug)) {
+      issues.push({ code: 'reserved-slug', slug: episode.slug });
     }
   }
 
@@ -300,8 +337,8 @@ export function playDay(
       }
 
       case 'fire': {
-        if (next.reporters <= 1) {
-          say('Somebody has to write it.');
+        if (next.reporters <= MIN_REPORTERS) {
+          say('You cannot put out a daily with fewer than three.');
           break;
         }
         // Free reporters go first. With nobody free the newest investigation is
@@ -428,6 +465,14 @@ export function playDay(
         }
         if (checkedToday.has(action.id) || next.checking.some((c) => c.id === action.id)) {
           say('Already looking into it.');
+          break;
+        }
+        // A tip ages off the desk before a check begun this late could report,
+        // and the resolution step then drops that check without a word: a
+        // reporter is held for two days, the ledger says nothing, and the
+        // player is never told why. Refuse the work instead of losing it.
+        if (next.day + TIP_CHECK_DAYS >= tip.offeredOn + STORY_SHELF_DAYS) {
+          say('There is no time left in it.');
           break;
         }
         if (next.reporters - next.running.length - next.checking.length - cultivatedToday <= 0) {

@@ -12,6 +12,7 @@ import {
   LAW_COST_MULTIPLE,
   LEVERS,
   MARGIN_SHARE,
+  MIN_REPORTERS,
   MONEY_COST_MULTIPLE,
   playDay,
   PUBLISH_GROWTH,
@@ -310,42 +311,44 @@ describe('the payroll', () => {
     expect(after.reporters).toBe(START_REPORTERS);
   });
 
-  it('keeps one reporter whatever happens', () => {
-    let paper = startPaper({ reporters: 1 });
+  it('will not go below the smallest newsroom the rules allow', () => {
+    let paper = startPaper({ reporters: MIN_REPORTERS });
     paper = step(paper, [{ kind: 'fire' }]);
-    expect(line(paper, 'Somebody has to write it.')).toBeDefined();
-    expect(paper.reporters).toBe(1);
+    expect(line(paper, 'You cannot put out a daily with fewer than three.')).toBeDefined();
+    expect(paper.reporters).toBe(MIN_REPORTERS);
   });
 
   it('lets a free reporter go before touching an investigation', () => {
-    let paper = startPaper({ reporters: 2 });
+    let paper = startPaper({ reporters: MIN_REPORTERS + 1 });
     for (let i = 0; i < SOURCE_STEPS_TO_LEAD; i += 1) {
       paper = step(paper, [{ kind: 'cultivate', sourceId: 'council' }]);
     }
     expect(paper.running).toHaveLength(1);
     paper = step(paper, [{ kind: 'fire' }]);
-    expect(paper.reporters).toBe(1);
+    expect(paper.reporters).toBe(MIN_REPORTERS);
     expect(paper.running).toHaveLength(1);
   });
 
   it('cancels the newest investigation when nobody is free, and keeps the lead', () => {
-    let paper = startPaper({ reporters: 2 });
-    // Two sources worked in parallel put both reporters on stories.
+    let paper = startPaper({ reporters: MIN_REPORTERS + 1 });
+    // Every source worked in parallel, which is as many investigations as the
+    // archive can carry: three sources, three episodes, three stories running.
     for (let i = 0; i < SOURCE_STEPS_TO_LEAD; i += 1) {
-      paper = step(paper, [
-        { kind: 'cultivate', sourceId: 'council' },
-        { kind: 'cultivate', sourceId: 'courts' },
-      ]);
+      paper = step(
+        paper,
+        STARTING_SOURCES.map((sourceId) => ({ kind: 'cultivate', sourceId }) as Action),
+      );
     }
-    // Both reporters spent those days on sources, so nobody was free to take the
-    // leads. One quiet day puts them both on stories.
-    expect(paper.leads).toHaveLength(2);
+    // One quiet day puts the queued leads on the reporters who were cultivating.
     paper = step(paper);
-    expect(paper.running).toHaveLength(2);
+    expect(paper.running).toHaveLength(STARTING_SOURCES.length);
 
-    paper = step(paper, [{ kind: 'fire' }]);
-    expect(paper.reporters).toBe(1);
-    expect(paper.running).toHaveLength(1);
+    // Three running plus one cultivating accounts for all four, so the fire
+    // finds nobody free. Below the floor of three this state is unreachable —
+    // it needs a fourth hand to spend.
+    paper = step(paper, [{ kind: 'cultivate', sourceId: 'council' }, { kind: 'fire' }]);
+    expect(paper.reporters).toBe(MIN_REPORTERS);
+    expect(paper.running).toHaveLength(STARTING_SOURCES.length - 1);
     expect(paper.leads).toHaveLength(1);
   });
 });
@@ -354,14 +357,17 @@ describe('the plan runs in the order it was written', () => {
   it('does not let a later action undo an earlier one', () => {
     // Three passes by kind made [work courts, let one go] and [let one go, work
     // courts] the same day, which is not what the screen promises.
-    // Two reporters with one already on a story: exactly one is free, so the
+    // Four reporters with three already on stories: exactly one is free, so the
     // order of [work courts] and [let one go] decides whether courts is worked.
     const busy = (): PaperState => {
-      let paper = startPaper({ reporters: 2 });
+      let paper = startPaper({ reporters: MIN_REPORTERS + 1 });
       for (let i = 0; i < SOURCE_STEPS_TO_LEAD; i += 1) {
-        paper = step(paper, [{ kind: 'cultivate', sourceId: 'council' }]);
+        paper = step(
+          paper,
+          STARTING_SOURCES.map((sourceId) => ({ kind: 'cultivate', sourceId }) as Action),
+        );
       }
-      return paper;
+      return step(paper);
     };
 
     const a = step(busy(), [{ kind: 'cultivate', sourceId: 'courts' }, { kind: 'fire' }]);
