@@ -3,10 +3,13 @@ import type { Playable } from '../../src/feed';
 import {
   ACCESS_FACTOR,
   BILL_BASIS_COPIES,
+  CLOSED_HEADING,
   CLOSED_LINE,
   COPIES_CEILING,
   COPIES_FLOOR,
   billBasisPence,
+  endingHeading,
+  endingText,
   HIRE_COST_PENCE,
   IDLE_DECAY,
   INSIDE_SHARE,
@@ -30,6 +33,7 @@ import {
   STARTING_SOURCES,
   validatePool,
   WAGE_PENCE_PER_DAY,
+  WON_HEADING,
   WON_LINE,
   type Action,
   type PaperState,
@@ -487,7 +491,7 @@ describe('circulation', () => {
     }
   });
 
-  it('fires the upper clamp exactly once, on the winning day', () => {
+  it('fires the upper clamp on the winning day', () => {
     // Mutation testing found the clamp dead: no campaign in the suite came near
     // a bound, so deleting both clamp() calls left every test green. So this
     // still has to drive circulation into the ceiling deliberately — but the
@@ -512,6 +516,31 @@ describe('circulation', () => {
 
     expect(after.copies).toBe(COPIES_CEILING);
     expect(after.won).toBe(true);
+  });
+
+  it('clamps again after the bills, because an access bill can push under the floor', () => {
+    // There are two clamp() calls in playDay: one at step 7, on the print run,
+    // and one at step 9, after the bills. Only the first was guarded — deleting
+    // the second left all 166 tests green, which is exactly the dead-clamp
+    // finding the test above was written for and did not actually close.
+    //
+    // Only an `access` bill can move circulation after step 7, and it moves it
+    // DOWN (x0.96), so the second clamp is reachable only against the floor:
+    // park at the floor, publish nothing, and let one access bill land.
+    const paper = startPaper({ cashPence: 100_000_000 });
+    const after = playDay(
+      {
+        ...paper,
+        copies: COPIES_FLOOR,
+        bills: [{ id: 'a-story', lever: 'access', dueOn: paper.day }],
+      },
+      POOL,
+      [],
+    );
+
+    // Without the second clamp this is COPIES_FLOOR * ACCESS_FACTOR = 1,920.
+    expect(after.copies).toBe(COPIES_FLOOR);
+    expect(after.over).toBe(false);
   });
 
   it('stops at the floor however long nobody publishes', () => {
@@ -898,6 +927,16 @@ describe('the endings', () => {
     expect(startPaper().over).toBe(false);
   });
 
+  it('derives each heading from its ledger line, minus the full stop', () => {
+    // Without this the derivation is invisible to the unit suite: replacing both
+    // .replace() calls with the identity leaves every vitest green, and only
+    // Playwright catches the stray full stop in the heading the player reads.
+    expect(CLOSED_HEADING).toBe('The paper has closed');
+    expect(WON_HEADING).toBe('Everyone reads you now');
+    expect(CLOSED_LINE).toBe(`${CLOSED_HEADING}.`);
+    expect(WON_LINE).toBe(`${WON_HEADING}.`);
+  });
+
   it('wins at the ceiling, and says so', () => {
     const paper = withStoryReady();
     const ready = paper.available.find((s) => s.source === 'investigation')!;
@@ -910,6 +949,80 @@ describe('the endings', () => {
     expect(after.copies).toBe(COPIES_CEILING);
     expect(line(after, WON_LINE)).toBeDefined();
     expect(line(after, CLOSED_LINE)).toBeUndefined();
+  });
+
+  it('tells a winner what they printed, not what the bill left standing', () => {
+    // The win is earned at the ceiling BEFORE the bills are charged, so on a day
+    // with an access bill the surviving circulation is 76,800 while the print
+    // run was 80,000. Reading `state.copies` here told a player who printed
+    // 80,000 that everyone reads their 76,800.
+    //
+    // Not assertable through the screen: the e2e win drives a stringer line,
+    // which arms `money` bills, so it always lands on exactly the ceiling and
+    // could never tell the two apart. That is why this is a pure function.
+    const paper = withStoryReady();
+    const ready = paper.available.find((s) => s.source === 'investigation')!;
+    const after = playDay(
+      {
+        ...paper,
+        copies: COPIES_CEILING * 0.99,
+        bills: [{ id: 'a-story', lever: 'access', dueOn: paper.day }],
+      },
+      POOL,
+      [{ kind: 'publish', id: ready.id }],
+    );
+
+    expect(after.won).toBe(true);
+    expect(after.copies).toBeLessThan(COPIES_CEILING);
+    expect(endingHeading(after)).toBe(WON_HEADING);
+    expect(endingText(after)).toContain('80,000 copies a day');
+    expect(endingText(after)).not.toContain('76,800');
+  });
+
+  it('tells a closed paper it closed', () => {
+    const days: Action[][] = Array.from({ length: 400 }, () => []);
+    const states = runCampaign(POOL, days);
+    const last = states[states.length - 1];
+
+    expect(endingHeading(last)).toBe(CLOSED_HEADING);
+    expect(endingText(last)).toContain('nothing came back');
+    expect(endingText(last)).not.toContain('everyone reads you now');
+  });
+
+  it('wins on the print run, so an access bill the same day cannot take it away', () => {
+    // The win is read off `printedAtCeiling`, captured at step 7, and an access
+    // bill is charged at step 9 by multiplying circulation. Reading the ceiling
+    // after the bills instead made this exact day score `won: false` at 76,800
+    // copies while banking the full 56,000p of ceiling takings — same day, same
+    // sales, different ending, decided by a letter earned weeks ago.
+    //
+    // Every published story arms a bill, so this is ordinary play, not a forged
+    // corner. The `law` bill in the test below cannot catch it: law costs cash,
+    // and only `access` touches circulation.
+    const paper = withStoryReady();
+    const ready = paper.available.find((s) => s.source === 'investigation')!;
+    const after = playDay(
+      {
+        ...paper,
+        copies: COPIES_CEILING * 0.99,
+        bills: [{ id: 'a-story', lever: 'access', dueOn: paper.day }],
+      },
+      POOL,
+      [{ kind: 'publish', id: ready.id }],
+    );
+
+    expect(after.won).toBe(true);
+    expect(after.over).toBe(true);
+    expect(line(after, WON_LINE)).toBeDefined();
+
+    // Sales are taken before the bill, so the day banks the ceiling takings...
+    expect(line(after, 'Sales')?.pence).toBe(
+      Math.round(COPIES_CEILING * COVER_PRICE_PENCE * MARGIN_SHARE),
+    );
+    // ...and the bill still lands. Circulation ends BELOW the ceiling on a won
+    // day, which is the whole point: the ending is not read off this number.
+    expect(after.copies).toBe(COPIES_CEILING * ACCESS_FACTOR);
+    expect(after.copies).toBeLessThan(COPIES_CEILING);
   });
 
   it('closes when the money runs out, and does not call that a win', () => {

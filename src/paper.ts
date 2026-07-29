@@ -15,6 +15,7 @@
  */
 
 import type { Playable } from './feed';
+import { formatCopies } from './ledger';
 import {
   ADVERTORIAL_ID,
   FOLLOW_TRIGGERS,
@@ -120,7 +121,7 @@ export const WAGE_PENCE_PER_DAY = 3_000;
  *
  * `fire` used to stop at one, and that made the game unlosable: the advertorial
  * pays a flat fee while wages scale with heads, so a player who shed two
- * reporters banked £30 a day at the circulation floor and never closed. The
+ * reporters banked £34 a day at the circulation floor and never closed. The
  * guard that was supposed to prevent exactly that asserted the bound against
  * `START_REPORTERS`, which is the headcount you begin with rather than the
  * lowest one you can reach — a bound on the wrong number is not a bound.
@@ -152,12 +153,23 @@ export const COVER_PRICE_PENCE = 2;
  * 3,000p, so a reporter paid for themselves only at 6,000 copies and the game
  * was very nearly unwinnable:
  *
- * | share | break-even per reporter | rows surviving of 14 | does idle still close? |
+ * "Rows not going broke" counts the fourteen policies that reach day 400 with
+ * the paper still open. It is NOT a count of survivors: under the win rule five
+ * of the eight at 0.35 end early as wins and only three are still running at
+ * day 400. The sweep was measured before the win rule landed, when going broke
+ * was the only way to end, which is why the column reads the way it does.
+ *
+ * | share | break-even per reporter | rows not going broke, of 14 | does idle still close? |
  * |---|---|---|---|
  * | 0.25 | 6,000 copies | 1 | yes — day 112 at three reporters |
- * | 0.35 | 4,286 copies | 8 | yes — 228 / 113 / 30 for 3r / 4r / 6r |
+ * | 0.35 | 4,286 copies | 8 (3 survive + 5 win) | yes — 228 / 113 / 30 for 3r / 4r / 6r |
  * | 0.50 | 3,000 copies | 9 | only at day 400 — too soft |
  * | 0.75 | 2,000 copies | 13 | **no** at three and four reporters |
+ *
+ * The derived columns assume `WAGE_PENCE_PER_DAY` 3,000 and `COVER_PRICE_PENCE`
+ * 2; the bill figures below assume `BILL_BASIS_COPIES` 20,000,
+ * `MONEY_COST_MULTIPLE` 0.75 and `LAW_COST_MULTIPLE` 2. Change any of those and
+ * this table is stale whether or not `MARGIN_SHARE` moved.
  *
  * 0.35 is where several strategies become viable while doing nothing still
  * closes the paper at every staffing. 0.75 was tried and leaves a do-nothing
@@ -168,7 +180,9 @@ export const COVER_PRICE_PENCE = 2;
  * too, so every bill moves with it: the money bill 7,500p to 10,500p, the law
  * bill 20,000p to 28,000p. That coupling is deliberate and the calibration was
  * measured with it in place. Decoupling them would be a second, unmeasured
- * change and every row in `src/runs.ts` would be describing a different game.
+ * change, and every measured row in the `EXPECTED` and `SURVIVORS` tables of
+ * `tests/integration/paper-campaign.test.ts` would be describing a different
+ * game. (`src/runs.ts` only names the policies; the outcomes live in the test.)
  */
 export const MARGIN_SHARE = 0.35;
 export const IDLE_DECAY = 0.005;
@@ -321,7 +335,7 @@ export function startPaper(options: StartOptions = {}): PaperState {
   // Against MIN_REPORTERS, not 1. `fire` refuses to go below three, so a
   // constructor that accepted two handed callers a state the rules say cannot
   // exist — and the advertorial pays a flat fee against wages that scale with
-  // heads, so a one-reporter paper banked £31 a day at the circulation floor
+  // heads, so a one-reporter paper banked £34 a day at the circulation floor
   // and never closed. That is the same unlosable game MIN_REPORTERS was raised
   // to prevent, still reachable through the door the calibration harness uses.
   if (!Number.isInteger(reporters) || reporters < MIN_REPORTERS) {
@@ -351,9 +365,44 @@ export function startPaper(options: StartOptions = {}): PaperState {
   };
 }
 
-/** What the ledger says on the day a campaign stops, either way. */
+/**
+ * What a campaign says when it stops, either way.
+ *
+ * The ledger lines end in a full stop and the headings do not, which is the only
+ * difference between them — so the headings are derived rather than retyped. The
+ * wording used to sit in three places (here, the heading literal in `main.ts`,
+ * the static markup in `index.html`) with nothing linking them, and renaming one
+ * left the ledger and the heading the player reads saying different things with
+ * no test going red.
+ */
 export const CLOSED_LINE = 'The paper has closed.';
 export const WON_LINE = 'Everyone reads you now.';
+export const CLOSED_HEADING = CLOSED_LINE.replace(/\.$/, '');
+export const WON_HEADING = WON_LINE.replace(/\.$/, '');
+
+/** The heading over the ending panel. */
+export const endingHeading = (state: PaperState): string =>
+  state.won ? WON_HEADING : CLOSED_HEADING;
+
+/**
+ * What the ending panel says under its heading.
+ *
+ * Here rather than inline in `main.ts` for the same reason `outcomeLine` is not
+ * in `scripts/simulate.ts`: it has a branch worth getting wrong and could not be
+ * tested where it sat. It was got wrong — the winning sentence read
+ * `state.copies`, which an `access` bill charged on the winning evening leaves
+ * BELOW the ceiling, so a player who printed 80,000 was told everyone reads
+ * their 76,800. The win is earned on the print run, and the print run that wins
+ * is always exactly `COPIES_CEILING`, because the step-7 clamp caps it there.
+ */
+export function endingText(state: PaperState): string {
+  const run = `You ran ${state.published.length} ${
+    state.published.length === 1 ? 'story' : 'stories'
+  } in ${state.day} days`;
+  return state.won
+    ? `${run}, and everyone reads you now — ${formatCopies(COPIES_CEILING)} copies a day.`
+    : `${run}, and then the wages went out and nothing came back. The bill that closed you was earned some time ago.`;
+}
 
 const clamp = (copies: number): number =>
   Math.min(Math.max(copies, COPIES_FLOOR), COPIES_CEILING);
@@ -720,6 +769,25 @@ export function playDay(
   // 7. Clamp.
   next.copies = clamp(next.copies);
 
+  // The win is measured on the print run, here, and not on the circulation left
+  // standing at the end of the day.
+  //
+  // Step 9 charges an `access` bill by multiplying circulation, so reading the
+  // ceiling after the bills made the ending depend on whether a letter happened
+  // to land the same evening: an issue that printed 80,000 and banked the full
+  // 56,000p of ceiling takings scored `won: false` at 76,800 and the campaign
+  // carried on. Same day, same sales, different ending. Reaching the ceiling is
+  // about the paper you printed, so an `access` bill cannot retract it.
+  //
+  // This immunises the win against CIRCULATION only. A `money` or `law` bill
+  // charged the same evening can still take cash negative, and insolvency beats
+  // the ceiling by design — see step 10. So a paper CAN print 80,000 and still
+  // close that night; it just cannot print 80,000 and be told it did not.
+  //
+  // Deliberately before Sales too, though nothing there touches circulation —
+  // the flag belongs with the clamp that produced it.
+  const printedAtCeiling = next.copies >= COPIES_CEILING;
+
   // 8. Sales.
   const takings = Math.round(next.copies * next.pricePence * MARGIN_SHARE);
   next.cashPence += takings;
@@ -765,11 +833,21 @@ export function playDay(
 
   // Reaching the ceiling ends the campaign, and you have won.
   //
-  // The `!next.over` guard is what makes the precedence hold, not the position
-  // of this block. The cash check above sets `over` and falls through without
-  // returning, so a day that both broke the paper and reached the ceiling would
-  // otherwise be recorded as a win. Before the arrivals block, so a finished
-  // paper does not generate a desk nobody will see.
+  // Read `printedAtCeiling`, captured at step 7, not `next.copies` — see the
+  // comment there for why the bills must not get a vote on the ending.
+  //
+  // The `!next.over` guard AND the position are both load-bearing. The guard is
+  // what stops a day that both broke the paper and reached the ceiling being
+  // recorded as a win; the position is what makes the guard mean anything, since
+  // the cash check has to have run before there is anything for it to see.
+  // Hoisted above the cash check, `!next.over` is trivially true and the day
+  // ends `won: true` with the closing line in the ledger under it. Do not
+  // reorder these two.
+  //
+  // Both endings fall through to the single exit at the bottom. The arrivals
+  // block below is already guarded by `!next.over`, so a `return` here would buy
+  // nothing except an asymmetry: anything appended after arrivals would silently
+  // run for a closure and be skipped for a win.
   //
   // This is why the ceiling stopped being a safe harbour rather than being made
   // unsafe. At 80,000 copies a paper takes 56,000p a day against 9,000p of
@@ -779,11 +857,10 @@ export function playDay(
   // circulation they cover, and if that holds then a staffed paper is profitable
   // at every scale. "Growth pays" and "no safe harbour" contradict each other.
   // Ending the campaign on arrival needs neither to give.
-  if (!next.over && next.copies >= COPIES_CEILING) {
+  if (!next.over && printedAtCeiling) {
     next.over = true;
     next.won = true;
     say(WON_LINE);
-    return next;
   }
 
   // Arrivals, only if there is still a paper to put them in.
@@ -864,7 +941,8 @@ function nextUnusedSlug(state: PaperState, pool: readonly Playable[]): string | 
  * A whole campaign, one state per played day.
  *
  * Index 0 is the state after day 1; the opening state is `startPaper` and is
- * not in the array. Stops on the day the paper closes.
+ * not in the array. Stops on the day the campaign ends, either way: `over` now
+ * covers a win as well as a closure.
  */
 export function runCampaign(
   pool: readonly Playable[],
