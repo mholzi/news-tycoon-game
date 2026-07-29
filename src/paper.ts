@@ -84,7 +84,14 @@ export interface PaperState {
   bills: Bill[];
   /** Newest first. */
   ledger: LedgerLine[];
+  /**
+   * The campaign has ended. It does NOT mean the paper closed — it widened when
+   * a second ending landed, and it is read as "stop" everywhere, which is why
+   * widening it was safe. `won` says which ending it was.
+   */
   over: boolean;
+  /** Ended by reaching `COPIES_CEILING` rather than by running out of money. */
+  won: boolean;
 }
 
 export type Action =
@@ -136,7 +143,34 @@ export const MIN_REPORTERS = 3;
  * table used to supply, kept so the calibration below did not have to move.
  */
 export const COVER_PRICE_PENCE = 2;
-export const MARGIN_SHARE = 0.25;
+
+/**
+ * What share of the cover price the paper keeps.
+ *
+ * Swept on the real simulator — edit this line, run `scripts/simulate.ts`, read
+ * the table — because at 0.25 a copy earned 0.5p a day against a reporter at
+ * 3,000p, so a reporter paid for themselves only at 6,000 copies and the game
+ * was very nearly unwinnable:
+ *
+ * | share | break-even per reporter | rows surviving of 14 | does idle still close? |
+ * |---|---|---|---|
+ * | 0.25 | 6,000 copies | 1 | yes — day 112 at three reporters |
+ * | 0.35 | 4,286 copies | 8 | yes — 228 / 113 / 30 for 3r / 4r / 6r |
+ * | 0.50 | 3,000 copies | 9 | only at day 400 — too soft |
+ * | 0.75 | 2,000 copies | 13 | **no** at three and four reporters |
+ *
+ * 0.35 is where several strategies become viable while doing nothing still
+ * closes the paper at every staffing. 0.75 was tried and leaves a do-nothing
+ * paper alive at three and four reporters, which is the one thing the economy
+ * has to keep punishing.
+ *
+ * **This is not only what a copy earns.** `billBasisPence()` multiplies by it
+ * too, so every bill moves with it: the money bill 7,500p to 10,500p, the law
+ * bill 20,000p to 28,000p. That coupling is deliberate and the calibration was
+ * measured with it in place. Decoupling them would be a second, unmeasured
+ * change and every row in `src/runs.ts` would be describing a different game.
+ */
+export const MARGIN_SHARE = 0.35;
 export const IDLE_DECAY = 0.005;
 export const PUBLISH_GROWTH = 0.07;
 
@@ -313,8 +347,13 @@ export function startPaper(options: StartOptions = {}): PaperState {
     bills: [],
     ledger: [],
     over: false,
+    won: false,
   };
 }
+
+/** What the ledger says on the day a campaign stops, either way. */
+export const CLOSED_LINE = 'The paper has closed.';
+export const WON_LINE = 'Everyone reads you now.';
 
 const clamp = (copies: number): number =>
   Math.min(Math.max(copies, COPIES_FLOOR), COPIES_CEILING);
@@ -348,9 +387,15 @@ export function playDay(
     next.ledger.unshift({ day: next.day, text, pence });
   };
 
-  // A closed paper runs nothing. Not even wages: there is nobody to pay.
+  // A finished paper runs nothing. Not even wages: there is nobody to pay.
+  //
+  // The line has to branch on `won` and the dedupe has to branch with it. A
+  // single hardcoded 'The paper has closed.' wrote the losing line into a
+  // winning ledger on the first replayed day, and comparing against a line this
+  // branch no longer says gives a won paper a duplicate every day after that.
   if (next.over) {
-    if (next.ledger[0]?.text !== 'The paper has closed.') say('The paper has closed.');
+    const ended = next.won ? WON_LINE : CLOSED_LINE;
+    if (next.ledger[0]?.text !== ended) say(ended);
     return next;
   }
 
@@ -711,10 +756,34 @@ export function playDay(
   }
   next.copies = clamp(next.copies);
 
-  // 10. End check.
+  // 10. End check. Two endings now, and going broke takes precedence: you
+  // cannot win a paper you cannot pay for.
   if (next.cashPence < 0) {
     next.over = true;
-    say('The paper has closed.');
+    say(CLOSED_LINE);
+  }
+
+  // Reaching the ceiling ends the campaign, and you have won.
+  //
+  // The `!next.over` guard is what makes the precedence hold, not the position
+  // of this block. The cash check above sets `over` and falls through without
+  // returning, so a day that both broke the paper and reached the ceiling would
+  // otherwise be recorded as a win. Before the arrivals block, so a finished
+  // paper does not generate a desk nobody will see.
+  //
+  // This is why the ceiling stopped being a safe harbour rather than being made
+  // unsafe. At 80,000 copies a paper takes 56,000p a day against 9,000p of
+  // wages and nothing can reach it — and the two measured attempts to make it
+  // reachable both failed, one of them for a reason that is arithmetic rather
+  // than tuning: growth is only worth having if a reporter costs less than the
+  // circulation they cover, and if that holds then a staffed paper is profitable
+  // at every scale. "Growth pays" and "no safe harbour" contradict each other.
+  // Ending the campaign on arrival needs neither to give.
+  if (!next.over && next.copies >= COPIES_CEILING) {
+    next.over = true;
+    next.won = true;
+    say(WON_LINE);
+    return next;
   }
 
   // Arrivals, only if there is still a paper to put them in.

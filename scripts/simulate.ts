@@ -17,7 +17,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { assertPlayFeed, toPlayable, type PlayFeed, type Playable } from '../src/feed';
-import { CALIBRATION_DAYS, playPolicy, type PolicyUses } from '../src/policy';
+import { CALIBRATION_DAYS, playPolicy } from '../src/policy';
+import { RUNS } from '../src/runs';
 import { formatCopies, formatTakings } from '../src/ledger';
 
 
@@ -31,28 +32,15 @@ const episodes = pool('pool-36.json');
 console.log(`pool: ${episodes.length} episodes, ${CALIBRATION_DAYS} days simulated\n`);
 console.log('policy             staff  outcome');
 
-const RUNS: readonly (readonly [string, number, number, PolicyUses])[] = [
-  ['nothing', 3, 0, {}],
-  ['nothing-4', 4, 0, {}],
-  ['nothing-6', 6, 0, {}],
-  ['investigations', 3, 1, {}],
-  ['investigations-4', 4, 1, {}],
-  ['investigations-6', 6, 1, {}],
-  ['investigations-2c', 4, 2, {}],
-  ['wire-only', 3, 0, { wire: true }],
-  ['advertorial-only', 3, 0, { advertorial: true }],
-  ['unbidden-only', 3, 0, { unbidden: true }],
-  ['stringer-only', 3, 0, { stringer: true }],
-  ['mixed', 3, 1, { wire: true, stringer: true, advertorial: true, checkTips: true, unbidden: true }],
-  ['mixed-blind', 3, 1, { wire: true, stringer: true, advertorial: true, unbidden: true }],
-  ['multi', 3, 1, { wire: true, stringer: true, advertorial: true, checkTips: true, unbidden: true, multiStory: true }],
-];
-
 for (const [name, reporters, cultivators, uses] of RUNS) {
   const end = playPolicy(episodes, cultivators, { reporters }, CALIBRATION_DAYS, uses);
-  const outcome = end.over
-    ? `broke on day ${end.day}`
-    : `survives: ${formatCopies(end.copies)} copies, ` +
-      `${end.published.length} published, ${formatTakings(end.cashPence)}`;
+  // Won first: a won paper is also `over`, so reading `over` before `won` would
+  // print every win as a closure.
+  const outcome = end.won
+    ? `won on day ${end.day}`
+    : end.over
+      ? `broke on day ${end.day}`
+      : `survives: ${formatCopies(end.copies)} copies, ` +
+        `${end.published.length} published, ${formatTakings(end.cashPence)}`;
   console.log(`${name.padEnd(18)} ${String(reporters)}r ${String(cultivators)}c  ${outcome}`);
 }

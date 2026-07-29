@@ -120,8 +120,11 @@
           </div>
         </div>
 
+        <!-- Both endings share this panel; the heading and the text are set from
+             `state.won`. The markup keeps the losing wording so a run with no
+             JavaScript-set text still reads as something rather than as a gap. -->
         <div class="issue" id="over" hidden>
-          <h2>The paper has closed</h2>
+          <h2 id="over-heading">The paper has closed</h2>
           <p id="over-text"></p>
           <div class="choices">
             <button type="button" class="cta" id="again">Start again</button>

@@ -3,6 +3,7 @@ import type { Playable } from '../../src/feed';
 import {
   ACCESS_FACTOR,
   BILL_BASIS_COPIES,
+  CLOSED_LINE,
   COPIES_CEILING,
   COPIES_FLOOR,
   billBasisPence,
@@ -29,6 +30,7 @@ import {
   STARTING_SOURCES,
   validatePool,
   WAGE_PENCE_PER_DAY,
+  WON_LINE,
   type Action,
   type PaperState,
 } from '../../src/paper';
@@ -137,11 +139,25 @@ describe('a day', () => {
     const day1 = step(startPaper());
     expect(day1.cashPence).toBeGreaterThan(START_CASH_PENCE);
 
+    // The crossover is arithmetic, not a tuning: three reporters cost 9,000p a
+    // day and a copy earns COVER_PRICE_PENCE * MARGIN_SHARE, so the paper stops
+    // paying its way below 12,857 copies, which IDLE_DECAY reaches on day 89.
+    // Asserted on both sides so the test states where the turn is rather than
+    // only that one exists — at 0.25 it fell on day 41 and a single "still
+    // losing by day 60" would have gone on passing through the whole change.
+    const breakEven = (START_REPORTERS * WAGE_PENCE_PER_DAY) / (COVER_PRICE_PENCE * MARGIN_SHARE);
+    expect(Math.ceil(breakEven)).toBe(12_858);
+
     let paper = startPaper();
-    for (let i = 0; i < 60; i += 1) paper = step(paper);
-    const before = paper.cashPence;
-    paper = step(paper);
-    expect(paper.cashPence).toBeLessThan(before);
+    const deltas: number[] = [];
+    for (let i = 0; i < 89; i += 1) {
+      const before = paper.cashPence;
+      paper = step(paper);
+      deltas.push(paper.cashPence - before);
+    }
+    expect(deltas[87]).toBeGreaterThan(0); // day 88, still ahead
+    expect(deltas[88]).toBeLessThan(0); // day 89, the first day it is not
+    expect(paper.copies).toBeLessThan(breakEven);
   });
 });
 
@@ -471,18 +487,31 @@ describe('circulation', () => {
     }
   });
 
-  it('stops at the ceiling however many stories run', () => {
+  it('fires the upper clamp exactly once, on the winning day', () => {
     // Mutation testing found the clamp dead: no campaign in the suite came near
-    // a bound, so deleting both clamp() calls left every test green. This drives
-    // circulation into the ceiling deliberately.
+    // a bound, so deleting both clamp() calls left every test green. So this
+    // still has to drive circulation into the ceiling deliberately — but the
+    // old way of doing it no longer works. It multiplied `copies` outside
+    // `playDay` and leaned on the next day to re-clamp, twenty times over; now
+    // that reaching the ceiling ENDS the campaign the second call early-returns,
+    // nothing is ever clamped again, and the test finished at 177,347,025.
+    //
+    // What is true instead: the clamp fires once, on the day the paper wins.
     let paper = startPaper({ cashPence: 100_000_000 });
-    paper.copies = COPIES_CEILING - 1;
-    for (let i = 0; i < 20; i += 1) {
-      paper = { ...playDay(paper, POOL, []), day: paper.day + 1 };
-      paper.copies *= 1.5;
-      paper = { ...playDay(paper, POOL, []), day: paper.day + 1 };
+    for (let i = 0; i < SOURCE_STEPS_TO_LEAD; i += 1) {
+      paper = step(paper, [{ kind: 'cultivate', sourceId: 'council' }]);
     }
-    expect(paper.copies).toBe(COPIES_CEILING);
+    for (let i = 0; i < INVESTIGATION_DAYS; i += 1) paper = step(paper);
+    const ready = paper.available.find((s) => s.source === 'investigation')!;
+
+    // Parked just under the ceiling; an investigation's 1.07 clears the rest.
+    // An idle day will not do it — at 0.99 the drift takes it DOWN to 78,804 —
+    // so the story here is load-bearing rather than decoration.
+    paper = { ...paper, copies: COPIES_CEILING * 0.99 };
+    const after = playDay(paper, POOL, [{ kind: 'publish', id: ready.id }]);
+
+    expect(after.copies).toBe(COPIES_CEILING);
+    expect(after.won).toBe(true);
   });
 
   it('stops at the floor however long nobody publishes', () => {
@@ -819,5 +848,127 @@ describe('runCampaign', () => {
       { kind: 'cultivate', sourceId: 'council' },
     ]);
     expect(runCampaign(POOL, days)).toEqual(runCampaign(POOL, days));
+  });
+
+  it('stops on a win as it stops on a close', () => {
+    // No code change made this true — `runCampaign` already breaks on `over`
+    // and a win sets it. Pinned so a later refactor that swaps that break for
+    // an explicit "went broke" test does not run play on past a finished game.
+    //
+    // Buy from the stringer daily and lead with yesterday's. Ids are
+    // `stringer-<day>` and the story arrives at the END of the day it was
+    // bought, hence the offset. Not the `stringer-only` calibration row — that
+    // one only buys when the desk is empty and wins on day 114; buying every
+    // morning regardless is a harder line and gets there on day 67.
+    const days: Action[][] = Array.from({ length: 400 }, (_, i) => {
+      const day = i + 1;
+      const actions: Action[] = [{ kind: 'buy-stringer' }];
+      if (day > 1) actions.push({ kind: 'publish', id: `stringer-${day - 1}` });
+      return actions;
+    });
+    const states = runCampaign(POOL, days);
+    const last = states[states.length - 1];
+
+    expect(last.won).toBe(true);
+    expect(last.day).toBe(67);
+    expect(states).toHaveLength(last.day);
+  });
+});
+
+/**
+ * The two ways a campaign stops.
+ *
+ * `over` means "ended", not "closed" — it widened when the win landed. `won`
+ * says which ending it was, and going broke takes precedence over reaching the
+ * ceiling, because you cannot win a paper you cannot pay for.
+ */
+describe('the endings', () => {
+  /** A matured investigation on the desk, with cash enough that nothing else bites. */
+  function withStoryReady(cashPence = 100_000_000): PaperState {
+    let paper = startPaper({ cashPence });
+    for (let i = 0; i < SOURCE_STEPS_TO_LEAD; i += 1) {
+      paper = step(paper, [{ kind: 'cultivate', sourceId: 'council' }]);
+    }
+    for (let i = 0; i < INVESTIGATION_DAYS; i += 1) paper = step(paper);
+    return paper;
+  }
+
+  it('opens un-won', () => {
+    expect(startPaper().won).toBe(false);
+    expect(startPaper().over).toBe(false);
+  });
+
+  it('wins at the ceiling, and says so', () => {
+    const paper = withStoryReady();
+    const ready = paper.available.find((s) => s.source === 'investigation')!;
+    const after = playDay({ ...paper, copies: COPIES_CEILING * 0.99 }, POOL, [
+      { kind: 'publish', id: ready.id },
+    ]);
+
+    expect(after.over).toBe(true);
+    expect(after.won).toBe(true);
+    expect(after.copies).toBe(COPIES_CEILING);
+    expect(line(after, WON_LINE)).toBeDefined();
+    expect(line(after, CLOSED_LINE)).toBeUndefined();
+  });
+
+  it('closes when the money runs out, and does not call that a win', () => {
+    const days: Action[][] = Array.from({ length: 400 }, () => []);
+    const states = runCampaign(POOL, days);
+    const last = states[states.length - 1];
+
+    expect(last.over).toBe(true);
+    expect(last.won).toBe(false);
+    expect(line(last, CLOSED_LINE)).toBeDefined();
+    expect(line(last, WON_LINE)).toBeUndefined();
+  });
+
+  it('closes rather than wins on a day that does both', () => {
+    // The publish is required, not decoration. Forging `copies` at the ceiling
+    // and playing an empty day drifts DOWN to 79,600 before the clamp, the win
+    // branch never evaluates, and the test then passes even against an
+    // implementation that checks the win BEFORE the cash — which is the one
+    // thing it exists to catch.
+    //
+    // The bill field is `lever`, not `kind`: a forged `{ kind: 'law' }` falls
+    // through to the default branch, charges nothing, and the day ends solvent.
+    const paper = withStoryReady();
+    const ready = paper.available.find((s) => s.source === 'investigation')!;
+    const forged: PaperState = {
+      ...paper,
+      copies: COPIES_CEILING * 0.99,
+      cashPence: 5_000,
+      bills: [
+        { id: 'a', lever: 'law', dueOn: paper.day },
+        { id: 'b', lever: 'law', dueOn: paper.day },
+      ],
+    };
+    const after = playDay(forged, POOL, [{ kind: 'publish', id: ready.id }]);
+
+    // Takings 56,000p, wages 9,000p, two law bills at 28,000p each.
+    expect(after.copies).toBe(COPIES_CEILING);
+    expect(after.cashPence).toBeLessThan(0);
+    expect(after.over).toBe(true);
+    expect(after.won).toBe(false);
+    expect(line(after, CLOSED_LINE)).toBeDefined();
+    expect(line(after, WON_LINE)).toBeUndefined();
+  });
+
+  it('stops a won paper exactly as it stops a closed one', () => {
+    const paper = withStoryReady();
+    const ready = paper.available.find((s) => s.source === 'investigation')!;
+    const won = playDay({ ...paper, copies: COPIES_CEILING * 0.99 }, POOL, [
+      { kind: 'publish', id: ready.id },
+    ]);
+
+    const after = playDay({ ...won, day: won.day + 1 }, POOL, [{ kind: 'hire' }]);
+    expect(after.cashPence).toBe(won.cashPence); // no wages, no hire
+    expect(after.reporters).toBe(won.reporters);
+    expect(after.published).toHaveLength(won.published.length);
+
+    // The ending line branches with `won`, and so does the dedupe. Before both
+    // did, a replayed winning day wrote the LOSING line into a winning ledger.
+    expect(line(after, CLOSED_LINE)).toBeUndefined();
+    expect(after.ledger.filter((l) => l.text === WON_LINE)).toHaveLength(1);
   });
 });

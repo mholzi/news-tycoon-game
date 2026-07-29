@@ -113,6 +113,38 @@ test('a paper that cannot pay its wages closes', async ({ page }) => {
 
   await expect(page.locator('#over')).toBeVisible();
   await expect(page.locator('#desk')).toBeHidden();
+  // Both endings share the panel, so the losing one has to say which it is.
+  await expect(page.locator('#over-heading')).toHaveText('The paper has closed');
+  await expect(page.locator('#over-text')).toContainText('nothing came back');
+});
+
+test('a paper that everybody reads wins, and the panel says so', async ({ page }) => {
+  // Sixty-seven days of buying, publishing and printing is about 200 real
+  // interactions, which does not fit the default 30 seconds. Raised rather than
+  // shortened: reaching the ceiling is the whole assertion, and a budget that
+  // stopped early would assert nothing.
+  test.setTimeout(180_000);
+  await serveFeed(page);
+  await page.goto('/');
+
+  // Buy from the stringer every morning and lead with what arrived last night.
+  // The same line the `runCampaign` unit test drives, which reaches the ceiling
+  // on day 67 — not the `mixed-blind` calibration row, because picking "the best
+  // thing on the desk" through the DOM would mean re-deriving the growth order
+  // in the browser, and a test that reimplements the policy it is checking is
+  // not evidence about the screen. The budget is 100 days against a win on 67.
+  const stringer = page.locator('.article[data-source="stringer"] .publish');
+  for (let day = 0; day < 100; day += 1) {
+    if (await page.locator('#over').isVisible()) break;
+    await page.locator('#buy-stringer').click();
+    if ((await stringer.count()) > 0) await stringer.first().click();
+    await page.locator('#next-day').click();
+  }
+
+  await expect(page.locator('#over')).toBeVisible();
+  await expect(page.locator('#desk')).toBeHidden();
+  await expect(page.locator('#over-heading')).toHaveText('Everyone reads you now');
+  await expect(page.locator('#over-text')).toContainText('80,000 copies a day');
 });
 
 test('an empty archive is a state, not a failure', async ({ page }) => {
