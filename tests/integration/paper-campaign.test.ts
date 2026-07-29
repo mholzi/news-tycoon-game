@@ -3,12 +3,14 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { assertPlayFeed, toPlayable, type PlayFeed, type Playable } from '../../src/feed';
 import { CALIBRATION_DAYS, playPolicy, type PolicyUses } from '../../src/policy';
-import { RUNS } from '../../src/runs';
+import { outcomeLine, RUNS } from '../../src/runs';
 import type { PaperState } from '../../src/paper';
 import {
   COPIES_CEILING,
   COPIES_FLOOR,
   HIRE_COST_PENCE,
+  START_COPIES,
+  WAGE_PENCE_PER_DAY,
   billBasisPence,
 } from '../../src/paper';
 
@@ -61,15 +63,26 @@ describe('the shape of the economy', () => {
     expect(play(1).over).toBe(false);
   });
 
-  it('punishes hiring past what the paper can carry, even when it is played well', () => {
-    // The threshold moved with the margin and the test now states where it
-    // sits, rather than only that one side of it holds: a fourth reporter is
-    // affordable on a worked paper, a sixth is not. At 0.25 the fourth already
-    // closed you, and asserting only `play(1, 4).over === true` would have gone
-    // green again the moment the threshold moved somewhere else entirely.
-    expect(play(1).over).toBe(false);
-    expect(play(1, 4).over).toBe(false);
+  it('carries a fourth reporter as dead weight and closes on a sixth', () => {
+    // Renamed off "punishes hiring past what the paper can carry": at 0.35 the
+    // fourth reporter is not punished at all. It changes no play whatever —
+    // identical circulation, identical stories — and costs exactly its wages.
+    // The punishment claim rests entirely on the sixth, so the name says so.
+    //
+    // The fourth reporter's cost is asserted as a relation, not a copied
+    // figure: SURVIVORS lists 22,579 copies and 36 published for BOTH rows, so
+    // pinning the numbers alone lets `investigations-4` restate the row above it
+    // and measure nothing.
+    const three = play(1);
+    const four = play(1, 4);
+    expect(three.over).toBe(false);
+    expect(four.over).toBe(false);
     expect(play(1, 6).over).toBe(true);
+
+    // Same game, one extra idle wage a day for the whole campaign.
+    expect(four.copies).toBe(three.copies);
+    expect(four.published.map((s) => s.id)).toEqual(three.published.map((s) => s.id));
+    expect(four.cashPence).toBe(three.cashPence - CALIBRATION_DAYS * WAGE_PENCE_PER_DAY);
   });
 
   it('gives an idle paper months rather than days or a whole year', () => {
@@ -132,14 +145,16 @@ describe('the other six sources', () => {
   // `npx vite-node scripts/simulate.ts`.
 
   it('keeps a paper alive on almost nothing, and no more than alive', () => {
-    // The old claim — the wire closes you, just later — is dead at this margin:
-    // agency copy now carries a paper through the whole year. Renamed rather
-    // than repointed, because "a floor rather than a living" was the assertion,
-    // not the number under it.
+    // The old claim — the wire closes you, just later — is NOT dead at this
+    // margin. It moved: the wire used to close you on day 138 and now closes you
+    // on day 419. Everything in this file is measured over CALIBRATION_DAYS, so
+    // `over === false` at day 400 says the paper is still solvent at the horizon
+    // and nothing more. Read alone it would be a claim about the economy that
+    // the economy does not make, so the real closing day is asserted under it.
     //
-    // What survives is the better half of the point. 399 wire items in 400 days
-    // for £687 of cash and a circulation that has more than halved: subsistence,
-    // and nothing that could ever reach the ceiling.
+    // The point survives intact, and is the better half of it. 399 wire items in
+    // 400 days for £687 of cash and a circulation that has more than halved:
+    // subsistence, and nothing that could ever reach the ceiling.
     const wire = play(0, 3, { wire: true });
     expect(wire.over).toBe(false);
     expect(wire.won).toBe(false);
@@ -147,6 +162,13 @@ describe('the other six sources', () => {
     expect(Math.round(wire.copies)).toBe(8_952);
     expect(wire.cashPence).toBe(68_729);
     expect(wire.copies).toBeLessThan(20_000);
+
+    // Run past the horizon and the wire still closes you. Without this the
+    // assertion above measures where the simulation stops, not the game.
+    const past = playPolicy(pool, 0, { reporters: 3 }, 420, { wire: true });
+    expect(past.over).toBe(true);
+    expect(past.won).toBe(false);
+    expect(past.day).toBe(419);
   });
 
   it('never lets an advertorial keep a paper alive', () => {
@@ -386,11 +408,43 @@ describe('every calibration row', () => {
     expect(idle.day).toBe(228);
     expect(idle.won).toBe(false);
     expect(idle.published).toHaveLength(0);
-    expect(idle.copies).toBeLessThan(COPIES_CEILING);
+    // Against START_COPIES, not COPIES_CEILING. An idle paper opens at 20,000
+    // and only ever decays, so `< COPIES_CEILING` (80,000) cannot fail under any
+    // implementation and asserted nothing. What the ceiling is unreachable
+    // FROM is the opening circulation, so that is what the bound is stated
+    // against.
+    expect(idle.copies).toBeLessThan(START_COPIES);
+  });
+
+  // `outcomeLine` was a ternary inline in `scripts/simulate.ts`, where nothing
+  // could reach it: swapping its two branches left all tests green and `tsc`
+  // clean while the table silently printed five wins as bankruptcies. The
+  // ordering is the only thing in the script worth getting wrong, so it lives in
+  // `src/runs.ts` where a test can hold it.
+
+  it('reads a won paper as won, not as broke', () => {
+    // A won paper is ALSO over. This is the state that tells the two orderings
+    // apart, and the only one that does.
+    const won = ended.find(({ name }) => name === 'mixed')!.end;
+    expect(won.over).toBe(true);
+    expect(won.won).toBe(true);
+    expect(outcomeLine(won)).toBe('won on day 99');
+  });
+
+  it('reads a closed paper as broke', () => {
+    const broke = ended.find(({ name }) => name === 'nothing')!.end;
+    expect(outcomeLine(broke)).toBe('broke on day 228');
+  });
+
+  it('reads a paper still running at the horizon as surviving', () => {
+    const alive = ended.find(({ name }) => name === 'investigations')!.end;
+    expect(alive.over).toBe(false);
+    expect(outcomeLine(alive)).toBe('survives: 22,579 copies, 36 published, £78,569.60');
   });
 });
 
 describe('the archive', () => {
+
   it('is the thing that runs out, and the paper survives it', () => {
     const end = play(1);
     expect(end.published).toHaveLength(pool.length);

@@ -116,6 +116,12 @@ test('a paper that cannot pay its wages closes', async ({ page }) => {
   // Both endings share the panel, so the losing one has to say which it is.
   await expect(page.locator('#over-heading')).toHaveText('The paper has closed');
   await expect(page.locator('#over-text')).toContainText('nothing came back');
+
+  // The same render hides the desk and with it the button just clicked, so
+  // without the focus move focus lands on <body> and a screen reader announces
+  // nothing at all. Asserted on both endings: the panel is shared, the focus
+  // move is not conditional on which one it is.
+  await expect(page.locator('#over-heading')).toBeFocused();
 });
 
 test('a paper that everybody reads wins, and the panel says so', async ({ page }) => {
@@ -145,6 +151,7 @@ test('a paper that everybody reads wins, and the panel says so', async ({ page }
   await expect(page.locator('#desk')).toBeHidden();
   await expect(page.locator('#over-heading')).toHaveText('Everyone reads you now');
   await expect(page.locator('#over-text')).toContainText('80,000 copies a day');
+  await expect(page.locator('#over-heading')).toBeFocused();
 });
 
 test('an empty archive is a state, not a failure', async ({ page }) => {
@@ -358,6 +365,25 @@ test('a tip already under check is not offered again the next morning', async ({
   // still there — but the button must not invite work already in hand.
   await expect(tip).toHaveCount(1);
   await expect(tip.locator('.check')).toBeDisabled();
+});
+
+test('starting again moves focus onto the desk', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+
+  for (let i = 0; i < 8; i += 1) await page.locator('#hire').click();
+  for (let i = 0; i < 40; i += 1) {
+    if (await page.locator('#over').isVisible()) break;
+    await page.locator('#next-day').click();
+  }
+  await expect(page.locator('#over')).toBeVisible();
+
+  // Restarting hides #over and with it the button just clicked. Without the
+  // focus move that leaves focus on <body> and a screen reader says nothing
+  // about the paper that just opened — the ending's bug, in reverse.
+  await page.locator('#again').click();
+  await expect(page.locator('#desk')).toBeVisible();
+  await expect(page.locator('#desk-eyebrow')).toBeFocused();
 });
 
 test('starting again puts the paper back where it began', async ({ page }) => {
