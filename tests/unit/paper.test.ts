@@ -5,26 +5,22 @@ import {
   BILL_BASIS_COPIES,
   COPIES_CEILING,
   COPIES_FLOOR,
-  decadeOf,
-  eraIssuePence,
-  FIRST_DECADE,
+  billBasisPence,
   HIRE_COST_PENCE,
   IDLE_DECAY,
   INVESTIGATION_DAYS,
-  LAST_DECADE,
   LAW_COST_MULTIPLE,
   LEVERS,
   MARGIN_SHARE,
   MONEY_COST_MULTIPLE,
   playDay,
-  pricesFor,
   PUBLISH_GROWTH,
   runCampaign,
   SOURCE_STEP_PENCE,
   SOURCE_STEPS_TO_LEAD,
   START_CASH_PENCE,
   START_COPIES,
-  START_DECADE,
+  COVER_PRICE_PENCE,
   START_REPORTERS,
   startPaper,
   STARTING_SOURCES,
@@ -70,8 +66,7 @@ describe('opening a paper', () => {
     expect(paper.cashPence).toBe(START_CASH_PENCE);
     expect(paper.copies).toBe(START_COPIES);
     expect(paper.reporters).toBe(START_REPORTERS);
-    expect(paper.decade).toBe(START_DECADE);
-    expect(paper.pricePence).toBe(pricesFor(START_DECADE).standard);
+    expect(paper.pricePence).toBe(COVER_PRICE_PENCE);
     expect(paper.sources.map((s) => s.id)).toEqual([...STARTING_SOURCES]);
   });
 
@@ -79,24 +74,18 @@ describe('opening a paper', () => {
     expect(() => startPaper({ reporters: 0 })).toThrow(RangeError);
     expect(() => startPaper({ reporters: 1.5 })).toThrow(RangeError);
     expect(() => startPaper({ cashPence: -1 })).toThrow(RangeError);
-    expect(() => startPaper({ decade: 1925 })).toThrow(RangeError);
-  });
-
-  it('clamps a decade outside the table rather than throwing mid-play', () => {
-    expect(pricesFor(1850)).toEqual(pricesFor(FIRST_DECADE));
-    expect(pricesFor(2400)).toEqual(pricesFor(LAST_DECADE));
-    expect(pricesFor(Number.NaN)).toEqual(pricesFor(FIRST_DECADE));
   });
 
   it('measures a bill in a day of takings, not in a day of cover price', () => {
-    expect(eraIssuePence(1920)).toBe(
-      Math.round(BILL_BASIS_COPIES * pricesFor(1920).standard * MARGIN_SHARE),
+    expect(billBasisPence()).toBe(
+      Math.round(BILL_BASIS_COPIES * COVER_PRICE_PENCE * MARGIN_SHARE),
     );
   });
 
-  it('knows which decade a year is in', () => {
-    expect(decadeOf(1931)).toBe(1930);
-    expect(decadeOf(2015)).toBe(2010);
+  it('is not set in a period: no campaign carries a decade', () => {
+    // Decoupled on 2026-07-29. Episodes keep their real years because they are
+    // real cases; the paper does not price itself from them.
+    expect(startPaper()).not.toHaveProperty('decade');
   });
 });
 
@@ -271,10 +260,10 @@ describe('a bill', () => {
       law = step(law, [], pool('law'));
     }
     expect(line(money, 'The bill for a-story')?.pence).toBe(
-      -Math.round(MONEY_COST_MULTIPLE * eraIssuePence(START_DECADE)),
+      -Math.round(MONEY_COST_MULTIPLE * billBasisPence()),
     );
     expect(line(law, 'The bill for a-story')?.pence).toBe(
-      -Math.round(LAW_COST_MULTIPLE * eraIssuePence(START_DECADE)),
+      -Math.round(LAW_COST_MULTIPLE * billBasisPence()),
     );
   });
 

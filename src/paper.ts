@@ -14,7 +14,6 @@
  * one a simulation of part of the system reported as a measurement of all of it.
  */
 
-import { PRICE_TABLE, type DecadePrices } from './ledger';
 import type { Playable } from './feed';
 
 export interface Source {
@@ -43,7 +42,6 @@ export interface PaperState {
   day: number;
   cashPence: number;
   copies: number;
-  readonly decade: number;
   readonly pricePence: number;
   reporters: number;
   sources: Source[];
@@ -65,15 +63,24 @@ export type Action =
 
 export interface StartOptions {
   reporters?: number;
-  decade?: number;
   cashPence?: number;
 }
 
 export const START_CASH_PENCE = 150_000;
 export const START_COPIES = 20_000;
 export const START_REPORTERS = 3;
-export const START_DECADE = 1920;
 export const WAGE_PENCE_PER_DAY = 3_000;
+
+/**
+ * What a copy costs, flat.
+ *
+ * Campaigns are decoupled from the centuries (Markus, 2026-07-29): a run is not
+ * set in a decade and does not price itself from one. The episodes still carry
+ * their real years, because they are real cases, but the year is what a story
+ * IS rather than what the paper charges. The 2p is the 1920s figure the price
+ * table used to supply, kept so the calibration below did not have to move.
+ */
+export const COVER_PRICE_PENCE = 2;
 export const MARGIN_SHARE = 0.25;
 export const IDLE_DECAY = 0.005;
 export const PUBLISH_GROWTH = 0.07;
@@ -89,9 +96,6 @@ export const ACCESS_FACTOR = 0.96;
 export const MONEY_COST_MULTIPLE = 0.75;
 export const LAW_COST_MULTIPLE = 2;
 
-export const FIRST_DECADE = 1920;
-export const LAST_DECADE = 2030;
-
 /**
  * The yardstick a money or law bill is priced against.
  *
@@ -106,32 +110,17 @@ export const STARTING_SOURCES = ['council', 'courts', 'the-lobby'] as const;
 /** The levers the economy knows how to charge for. */
 export const LEVERS = ['access', 'money', 'law'] as const;
 
-export const decadeOf = (year: number): number => Math.floor(year / 10) * 10;
-
 /**
- * Prices for a decade, clamped into the table.
- *
- * No warning set here, unlike the version this replaces: a mutable accumulator
- * threaded through a function called from `playDay` would make the day impure
- * for the sake of a console line. Author-facing complaints live in
- * `validatePool`, which runs once when the feed loads.
- */
-export function pricesFor(decade: number): DecadePrices {
-  const usable = Number.isFinite(decade) ? decade : FIRST_DECADE;
-  const clamped = Math.min(Math.max(usable, FIRST_DECADE), LAST_DECADE);
-  return PRICE_TABLE[clamped] ?? PRICE_TABLE[FIRST_DECADE];
-}
-
-/**
- * One day's TAKINGS at the era's standard price, which is what a bill is measured in.
+ * One day's takings at the standard print run, which is what a bill is measured in.
  *
  * `MARGIN_SHARE` belongs here and was missing from the first draft. Without it
  * this returned the gross cover value of the print run rather than what the
  * paper actually keeps, making every bill four times its intended size — a law
- * bill came to eight days of revenue and no campaign could survive one.
+ * bill came to eight days of revenue and no campaign could survive one. The
+ * simulator found it on its first run.
  */
-export function eraIssuePence(decade: number): number {
-  return Math.round(BILL_BASIS_COPIES * pricesFor(decade).standard * MARGIN_SHARE);
+export function billBasisPence(): number {
+  return Math.round(BILL_BASIS_COPIES * COVER_PRICE_PENCE * MARGIN_SHARE);
 }
 
 export type PoolIssue =
@@ -172,7 +161,6 @@ export function validatePool(pool: readonly Playable[]): PoolIssue[] {
  */
 export function startPaper(options: StartOptions = {}): PaperState {
   const reporters = options.reporters ?? START_REPORTERS;
-  const decade = options.decade ?? START_DECADE;
   const cashPence = options.cashPence ?? START_CASH_PENCE;
 
   if (!Number.isInteger(reporters) || reporters < 1) {
@@ -181,16 +169,11 @@ export function startPaper(options: StartOptions = {}): PaperState {
   if (!Number.isFinite(cashPence) || cashPence < 0) {
     throw new RangeError(`a paper cannot open in debt, got ${cashPence}`);
   }
-  if (PRICE_TABLE[decade] === undefined) {
-    throw new RangeError(`no price row for decade ${decade}`);
-  }
-
   return {
     day: 1,
     cashPence,
     copies: START_COPIES,
-    decade,
-    pricePence: PRICE_TABLE[decade].standard,
+    pricePence: COVER_PRICE_PENCE,
     reporters,
     sources: STARTING_SOURCES.map((id) => ({ id, steps: 0 })),
     leads: [],
@@ -391,13 +374,13 @@ export function playDay(
         say(`The bill for ${bill.slug}`);
         break;
       case 'money': {
-        const cost = Math.round(MONEY_COST_MULTIPLE * eraIssuePence(next.decade));
+        const cost = Math.round(MONEY_COST_MULTIPLE * billBasisPence());
         next.cashPence -= cost;
         say(`The bill for ${bill.slug}`, -cost);
         break;
       }
       case 'law': {
-        const cost = Math.round(LAW_COST_MULTIPLE * eraIssuePence(next.decade));
+        const cost = Math.round(LAW_COST_MULTIPLE * billBasisPence());
         next.cashPence -= cost;
         say(`The bill for ${bill.slug}`, -cost);
         break;
