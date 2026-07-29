@@ -4,6 +4,7 @@ import { loadEpisodes, type Playable } from './feed';
 import { formatCopies, formatPrice, formatTakings } from './ledger';
 import { playDay, SOURCE_STEPS_TO_LEAD, startPaper, validatePool, type Action } from './paper';
 import {
+  PUBLISH_RULES,
   STORY_SHELF_DAYS,
   STRINGER_PENCE,
   TIP_CHECK_DAYS,
@@ -85,8 +86,10 @@ function start(pool: Playable[]): void {
 
   function describe(action: Action): string {
     switch (action.kind) {
+      // Not "lead with" any more: an issue holds several, and only the first is
+      // the lead. The panel below says which is which; this line just lists them.
       case 'publish':
-        return `lead with ${headlines.get(action.id) ?? action.id}`;
+        return `run ${headlines.get(action.id) ?? action.id}`;
       case 'cultivate':
         return `work ${action.sourceId}`;
       case 'hire':
@@ -121,6 +124,7 @@ function start(pool: Playable[]): void {
     // A second go at the same source is refused and costs nothing, so sources
     // are counted once however many times they were tapped.
     const worked = new Set<string>();
+    const published = new Set<string>();
     let spent = 0;
     let heads = state.reporters;
     for (const action of plan) {
@@ -131,13 +135,17 @@ function start(pool: Playable[]): void {
         worked.add(action.sourceId);
         spent += 1;
       }
-      // Writing costs a reporter now, on the same budget as the rest. Agency
-      // copy does not: it is already written. An id no longer on the desk is
-      // charged anyway — `playDay` will refuse it, and greying a control early
-      // beats the screen re-deriving the rules.
+      // Writing costs a reporter now, on the same budget as the rest — but which
+      // stories cost one is read from `PUBLISH_RULES`, not restated here. The
+      // first version restated it and immediately disagreed with the rules: it
+      // charged for a second advertorial that `playDay` refuses for free, and
+      // greyed out a cultivate the rules would have accepted.
       if (action.kind === 'publish') {
         const story = state.available.find((s) => s.id === action.id);
-        if (story?.source !== 'wire') spent += 1;
+        const rule = story === undefined ? undefined : PUBLISH_RULES[story.source];
+        const alreadyIn = rule?.oncePerIssue === true && published.has(action.id);
+        if (rule?.costsReporter === true && !alreadyIn) spent += 1;
+        if (rule !== undefined) published.add(action.id);
       }
     }
     return { free: heads - state.running.length - state.checking.length - spent, heads };
@@ -279,8 +287,11 @@ function start(pool: Playable[]): void {
       drop.className = 'cta remove';
       drop.textContent = 'Take it out';
       drop.setAttribute('aria-label', `Take out: ${headlines.get(id) ?? id}`);
+      // Removal reads the index off the element, so the attribute the test and
+      // the handler use is the same one. Written-but-unread invites a later
+      // render to stop setting it without anything going red.
       drop.addEventListener('click', () => {
-        plan.splice(entry.index, 1);
+        plan.splice(Number(li.dataset.index), 1);
         render();
       });
 

@@ -18,7 +18,7 @@ import {
   type StartOptions,
   type Story,
 } from './paper';
-import { STRINGER_PENCE } from './sources';
+import { PUBLISH_RULES, STRINGER_PENCE } from './sources';
 
 /**
  * Which sources a calibration policy is allowed to use.
@@ -83,6 +83,17 @@ function allows(story: Story, uses: PolicyUses): boolean {
   return true;
 }
 
+/**
+ * A standing offer that may run once in an issue — the advertorial, and nothing
+ * else today. Consumed stories are also `oncePerIssue`, but two stringers are
+ * two different stories and both belong in one paper, so the test is on the
+ * offer being standing rather than on the cap alone.
+ */
+const isCappedOffer = (story: Story): boolean => {
+  const rule = PUBLISH_RULES[story.source];
+  return rule.oncePerIssue && !rule.consumed;
+};
+
 const bestFirst = (a: Story, b: Story): number =>
   b.growth !== a.growth ? b.growth - a.growth : a.id < b.id ? -1 : 1;
 
@@ -117,6 +128,12 @@ function fillInside(
         allows(s, uses) &&
         s.unverified !== true &&
         s.source !== 'wire' &&
+        // A capped standing offer belongs to the lead or to nobody. Read from
+        // the rules rather than left to `growth > 1` to exclude it: the
+        // advertorial is only kept out by being worth 0.975 today, and a tuning
+        // pass that lifted it above 1 would have this queueing an illegal issue
+        // every day while the table kept printing.
+        !isCappedOffer(s) &&
         s.growth > 1,
     )
     .sort(bestFirst)
@@ -189,13 +206,16 @@ export function playPolicy(
       // `playDay` runs, where `free()` then sees them. Leaving the term out
       // over-states capacity for every checking policy, and `playDay` would refuse
       // the surplus rather than the policy never asking.
+      // The lead's own charge is read from the rules, not assumed to be one:
+      // when nothing else is allowed `pickLead` can return a wire item, which
+      // costs no reporter, and a hardcoded `- 1` understated the inside by one.
       const capacity =
         state.reporters -
         state.running.length -
         state.checking.length -
         cultivators -
         checksQueued -
-        1;
+        (PUBLISH_RULES[lead.source].costsReporter ? 1 : 0);
 
       for (const story of fillInside(
         state.available.filter((s) => s.id !== lead.id),

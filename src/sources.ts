@@ -231,5 +231,41 @@ export const investigationStory = (episode: Playable, day: number, growth: numbe
   offeredOn: day,
 });
 
+/**
+ * How each kind of story behaves when it goes into an issue.
+ *
+ * One table, because the same three facts were being restated at five sites —
+ * `playDay`'s publish case twice, the screen's reporter count, and the
+ * calibration policy — and the screen and the rules had already drifted apart
+ * over the advertorial: the rules refuse a second one for free, the screen was
+ * charging a reporter for it and greying out a cultivate the rules would allow.
+ *
+ * `Record<StorySource, ...>` on purpose. An eighth source is then a compile
+ * error here rather than a silent wrong answer in four places, which is the same
+ * reason `SOURCE_LABELS` is keyed this way.
+ */
+export interface PublishRule {
+  /** Does somebody have to write it? Agency copy arrives already written. */
+  readonly costsReporter: boolean;
+  /** May it appear more than once in one issue? */
+  readonly oncePerIssue: boolean;
+  /** Does running it take it off the desk, or is it a standing offer? */
+  readonly consumed: boolean;
+}
+
+export const PUBLISH_RULES: Record<StorySource, PublishRule> = {
+  investigation: { costsReporter: true, oncePerIssue: true, consumed: true },
+  planted: { costsReporter: true, oncePerIssue: true, consumed: true },
+  stringer: { costsReporter: true, oncePerIssue: true, consumed: true },
+  tip: { costsReporter: true, oncePerIssue: true, consumed: true },
+  follow: { costsReporter: true, oncePerIssue: true, consumed: true },
+  // The advertiser buys one page, not the paper. Never consumed: tomorrow the
+  // offer is there again.
+  advertorial: { costsReporter: true, oncePerIssue: true, consumed: false },
+  // Already written, so free of reporters, and there is no limit on how much of
+  // an issue it fills. What it costs is that it is nobody's scoop.
+  wire: { costsReporter: false, oncePerIssue: false, consumed: false },
+};
+
 /** What arms a follow-up. `follow` is deliberately absent: it must not arm itself. */
 export const FOLLOW_TRIGGERS: readonly StorySource[] = ['investigation', 'planted', 'stringer', 'tip'];
