@@ -56,7 +56,9 @@ function pick(available: readonly Story[], uses: PolicyUses): Story | undefined 
     if (s.source === 'tip') return uses.unbidden === true && uses.checkTips !== true;
     return true;
   });
-  return [...allowed].sort((a, b) =>
+  // `filter` already returned a fresh array, so this sorts nothing the caller
+  // can see.
+  return allowed.sort((a, b) =>
     b.growth !== a.growth ? b.growth - a.growth : a.id < b.id ? -1 : 1,
   )[0];
 }

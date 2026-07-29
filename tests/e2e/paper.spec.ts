@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { assertPlayFeed, toPlayable, type PlayFeed } from '../../src/feed';
 import { formatCopies, formatTakings } from '../../src/ledger';
 import { runCampaign, type Action } from '../../src/paper';
+import { TIP_EVERY_DAYS } from '../../src/sources';
 
 /**
  * The paper as a player meets it.
@@ -245,8 +246,10 @@ test('an unchecked tip gives nothing away', async ({ page }) => {
   await serveFeed(page);
   await page.goto('/');
 
-  // Walk to the first tip.
-  for (let i = 0; i < 12; i += 1) {
+  // Walk to the first tip. Bound derived from the cadence, not written out: at
+  // a bare 12 a raised TIP_EVERY_DAYS failed on the count assertion below and
+  // said nothing about which of the two had actually moved.
+  for (let i = 0; i < TIP_EVERY_DAYS + 2; i += 1) {
     if ((await page.locator('#available .article[data-source="tip"]').count()) > 0) break;
     await page.locator('#next-day').click();
   }
@@ -257,8 +260,13 @@ test('an unchecked tip gives nothing away', async ({ page }) => {
   await expect(tip.locator('.voice-who')).toHaveText('unchecked');
   await expect(tip.locator('.check')).toBeVisible();
 
+  // The plan names the story the way the desk does, not by its internal id —
+  // the same rule `lead with …` already followed.
+  const headline = (await tip.locator('.voice-says').textContent()) ?? '';
+  expect(headline).not.toBe('');
   await tip.locator('.check').click();
-  await expect(page.locator('#planned')).toContainText('check tip-');
+  await expect(page.locator('#planned')).toContainText(`check ${headline}`);
+  await expect(page.locator('#planned')).not.toContainText('tip-');
   await page.locator('#next-day').click();
   await expect(page.locator('#reporters')).toHaveText('2/3');
 });

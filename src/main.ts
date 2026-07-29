@@ -8,6 +8,7 @@ import {
   STRINGER_PENCE,
   TIP_CHECK_DAYS,
   WIRE_PENCE_PER_DAY,
+  type StorySource,
 } from './sources';
 
 /**
@@ -37,8 +38,14 @@ function showOnly(section: HTMLElement | null): void {
   }
 }
 
-/** What the desk calls each kind of story. Never more than this about a tip. */
-const SOURCE_LABELS: Record<string, string> = {
+/**
+ * What the desk calls each kind of story. Never more than this about a tip.
+ *
+ * Keyed by `StorySource` rather than `string` on purpose: an eighth source
+ * would otherwise compile clean and print the word `undefined` into the one
+ * slot that is supposed to say what a story is.
+ */
+const SOURCE_LABELS: Record<StorySource, string> = {
   investigation: 'your own',
   wire: 'from the wire',
   planted: 'somebody wants this out',
@@ -63,8 +70,8 @@ function start(pool: Playable[]): void {
   const desk = el('desk');
   const overBox = el('over');
   const overText = el('over-text');
-  const wire = el('wire');
-  const buyStringer = el('buy-stringer');
+  const wire = el<HTMLButtonElement>('wire');
+  const buyStringer = el<HTMLButtonElement>('buy-stringer');
 
   /** Headlines for anything currently on the desk, so the plan can name them. */
   let headlines = new Map<string, string>();
@@ -89,7 +96,7 @@ function start(pool: Playable[]): void {
       case 'buy-stringer':
         return 'buy a story';
       case 'check':
-        return `check ${action.id}`;
+        return `check ${headlines.get(action.id) ?? action.id}`;
     }
   }
 
@@ -102,9 +109,9 @@ function start(pool: Playable[]): void {
       state.reporters - state.running.length - state.checking.length
     }/${state.reporters}`;
     wire.textContent = state.subscribed
-      ? `Drop the wire (£${(WIRE_PENCE_PER_DAY / 100).toFixed(2)} a day)`
-      : `Take the wire (£${(WIRE_PENCE_PER_DAY / 100).toFixed(2)} a day)`;
-    buyStringer.textContent = `Buy a story (£${(STRINGER_PENCE / 100).toFixed(2)})`;
+      ? `Drop the wire (${formatTakings(WIRE_PENCE_PER_DAY)} a day)`
+      : `Take the wire (${formatTakings(WIRE_PENCE_PER_DAY)} a day)`;
+    buyStringer.textContent = `Buy a story (${formatTakings(STRINGER_PENCE)})`;
     day.textContent = `Day ${state.day}`;
 
     ledger.replaceChildren();
@@ -158,6 +165,9 @@ function start(pool: Playable[]): void {
         check.className = 'cta check';
         check.dataset.id = story.id;
         check.textContent = 'Check it';
+        // Every check button reads the same, so the accessible name has to name
+        // the tip. The headline says nothing about whether it stands up.
+        check.setAttribute('aria-label', `Check: ${story.headline}`);
         check.addEventListener('click', () => {
           plan.push({ kind: 'check', id: story.id });
           render();
@@ -215,11 +225,11 @@ function start(pool: Playable[]): void {
     render();
   });
 
-  el<HTMLButtonElement>('wire').addEventListener('click', () => {
+  wire.addEventListener('click', () => {
     plan.push({ kind: state.subscribed ? 'unsubscribe' : 'subscribe' });
     render();
   });
-  el<HTMLButtonElement>('buy-stringer').addEventListener('click', () => {
+  buyStringer.addEventListener('click', () => {
     plan.push({ kind: 'buy-stringer' });
     render();
   });

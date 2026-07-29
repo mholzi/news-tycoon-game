@@ -25,7 +25,10 @@ import {
   dayHasTip,
   fnv1a,
   headlineFor,
+  advertorialStory,
+  followStory,
   plantedStory,
+  stringerStory,
   tipIsTrue,
   tipStory,
   wireStory,
@@ -137,21 +140,35 @@ describe('the constants stay inside their bounds', () => {
 });
 
 describe('generated copy names nobody', () => {
-  const phrases = new Set<string>([
-    ...HEADLINE_WORDS.who,
-    ...HEADLINE_WORDS.what,
-    ...HEADLINE_WORDS.which,
-  ]);
+  /**
+   * Every headline the vocabulary can produce, in the one order it produces
+   * them.
+   *
+   * Rebuilt rather than parsed: the old version split the headline on a hand-
+   * written regex and then checked the first phrase against the union of all
+   * three lists, so a headline whose `who` came from the `which` list passed.
+   * Membership of the exact product set is the claim the module's docstring
+   * actually makes.
+   */
+  const buildable = new Set<string>();
+  for (const who of HEADLINE_WORDS.who) {
+    for (const what of HEADLINE_WORDS.what) {
+      for (const which of HEADLINE_WORDS.which) buildable.add(`${who} ${what} ${which}`);
+    }
+  }
 
   it('builds every headline from the vocabulary and nothing else', () => {
-    // A phrase check, not a word check: the vocabulary holds entries like
-    // "The council". Over 400 days of every generated source.
+    // Over 400 days of every generated source, not just three of them.
+    expect(buildable.has(advertorialStory().headline)).toBe(true);
     for (let day = 1; day <= 400; day += 1) {
-      for (const story of [wireStory(day), plantedStory(day), tipStory(day)]) {
-        const [who, what, which] = story.headline.split(/ (?=delays|defends|reviews|denies|confirms|abandons|restates|buries|the )/);
-        expect(phrases.has(who)).toBe(true);
-        expect(HEADLINE_WORDS.what).toContain(what);
-        expect(HEADLINE_WORDS.which).toContain(which);
+      for (const story of [
+        wireStory(day),
+        plantedStory(day),
+        stringerStory(day),
+        tipStory(day),
+        followStory(day),
+      ]) {
+        expect(buildable.has(story.headline)).toBe(true);
       }
     }
   });
@@ -235,9 +252,15 @@ describe('the stringer', () => {
 });
 
 describe('a tip', () => {
+  // Bounded, not `while`: `step` stops advancing `day` once the paper closes,
+  // so anything that shuts a paper before the first tip would turn this into an
+  // infinite loop that hangs CI instead of a test that fails with a message.
   const withTip = (): PaperState => {
     let paper = startPaper();
-    while (!ids(paper).some((id) => id.startsWith('tip-'))) paper = step(paper);
+    for (let i = 0; i <= TIP_EVERY_DAYS + 1 && !ids(paper).some((id) => id.startsWith('tip-')); i += 1) {
+      paper = step(paper);
+    }
+    expect(ids(paper).some((id) => id.startsWith('tip-'))).toBe(true);
     return paper;
   };
 
