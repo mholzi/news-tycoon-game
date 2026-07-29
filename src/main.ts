@@ -2,7 +2,15 @@ import './tokens.css';
 import './game.css';
 import { loadEpisodes, type Playable } from './feed';
 import { formatCopies, formatPrice, formatTakings } from './ledger';
-import { playDay, SOURCE_STEPS_TO_LEAD, startPaper, validatePool, type Action } from './paper';
+import {
+  endingHeading,
+  endingText,
+  playDay,
+  SOURCE_STEPS_TO_LEAD,
+  startPaper,
+  validatePool,
+  type Action,
+} from './paper';
 import {
   PUBLISH_RULES,
   STORY_SHELF_DAYS,
@@ -73,6 +81,7 @@ function start(pool: Playable[]): void {
   const tomorrowEmpty = el('tomorrow-empty');
   const tomorrowSlots = el('tomorrow-slots');
   const desk = el('desk');
+  const deskEyebrow = el('desk-eyebrow');
   const overBox = el('over');
   const overHeading = el('over-heading');
   const overText = el('over-text');
@@ -333,17 +342,30 @@ function start(pool: Playable[]): void {
         : `Tomorrow: ${plan.map(describe).join(', ')}.`;
     clearPlan.hidden = plan.length === 0;
 
+    // Was the ending already on screen before this render? Read before anything
+    // below moves it.
+    //
+    // No current path can make this false while `state.over` is true: every
+    // other control lives inside `#desk`, which is hidden the moment the
+    // campaign ends, and `Start again` clears `over` before it renders. It is
+    // here so that adding a control OUTSIDE the desk cannot silently start
+    // stealing focus back on every click.
+    const endingWasHidden = overBox.hidden;
+
     desk.hidden = state.over;
-    overBox.hidden = !state.over;
     if (state.over) {
-      const run = `You ran ${state.published.length} ${
-        state.published.length === 1 ? 'story' : 'stories'
-      } in ${state.day} days`;
-      overHeading.textContent = state.won ? 'Everyone reads you now' : 'The paper has closed';
-      overText.textContent = state.won
-        ? `${run}, and everyone reads you now — ${formatCopies(state.copies)} copies a day.`
-        : `${run}, and then the wages went out and nothing came back. The bill that closed you was earned some time ago.`;
+      overHeading.textContent = endingHeading(state);
+      overText.textContent = endingText(state);
     }
+    // Revealed last, after its contents are written, so the panel is never on
+    // screen in a state this function has not finished filling in.
+    overBox.hidden = !state.over;
+
+    // The same render hides the desk, and with it the button that was just
+    // clicked, so focus would otherwise land on `<body>` and a screen reader
+    // would announce nothing at all — win or lose. Moving it to the heading
+    // makes the ending the reading position.
+    if (state.over && endingWasHidden) overHeading.focus();
   }
 
   // A plan is a list of intentions, so it has to be possible to change your
@@ -389,6 +411,10 @@ function start(pool: Playable[]): void {
     state = startPaper();
     plan = [];
     render();
+    // The mirror of the ending's focus move. This render hides `#over` and with
+    // it the button just clicked, so without this focus falls to `<body>` and a
+    // screen reader announces nothing about the paper that just opened.
+    deskEyebrow.focus();
   });
 
   render();
