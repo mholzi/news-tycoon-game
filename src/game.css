@@ -220,6 +220,13 @@ button.cta {
   cursor: pointer;
 }
 
+/* A cta can be disabled now (Check it, with no reporter free), and it must stop
+   inviting the click it refuses. Matches `.voices .voice:disabled`. */
+button.cta:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 /* ---- moved from prototype.astro:447-507 ---- */
 
 /*

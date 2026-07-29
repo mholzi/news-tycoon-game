@@ -226,7 +226,7 @@ test('the wire button says what the plan will leave behind', async ({ page }) =>
   await expect(page.locator('#planned')).toHaveText('Nothing planned for tomorrow.');
 });
 
-test('a planned check is counted against the reporters still free', async ({ page }) => {
+test('the free-reporter figure counts what the rules will accept', async ({ page }) => {
   await serveFeed(page);
   await page.goto('/');
 
@@ -237,6 +237,38 @@ test('a planned check is counted against the reporters still free', async ({ pag
   await expect(page.locator('#reporters')).toHaveText('2/3');
   await page.locator('.source[data-source="courts"] .cultivate').click();
   await expect(page.locator('#reporters')).toHaveText('1/3');
+
+  // A second go at a source already worked is refused and costs nothing, so it
+  // must not be charged here either.
+  await page.locator('.source[data-source="council"] .cultivate').click();
+  await expect(page.locator('#reporters')).toHaveText('1/3');
+
+  // A queued hire is a hand the plan will have.
+  await page.locator('#hire').click();
+  await expect(page.locator('#reporters')).toHaveText('2/4');
+  // And a queued fire is one it will not.
+  await page.locator('#fire').click();
+  await expect(page.locator('#reporters')).toHaveText('1/3');
+});
+
+test('a tip already under check is not offered again the next morning', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+
+  for (let i = 0; i < TIP_EVERY_DAYS + 2; i += 1) {
+    if ((await page.locator('#available .article[data-source="tip"]').count()) > 0) break;
+    await page.locator('#next-day').click();
+  }
+  const tip = page.locator('#available .article[data-source="tip"]').first();
+  await expect(tip.locator('.check')).toBeEnabled();
+
+  await tip.locator('.check').click();
+  await page.locator('#next-day').click();
+
+  // The tip is still unverified while the reporter is on it, so the card is
+  // still there — but the button must not invite work already in hand.
+  await expect(tip).toHaveCount(1);
+  await expect(tip.locator('.check')).toBeDisabled();
 });
 
 test('starting again puts the paper back where it began', async ({ page }) => {

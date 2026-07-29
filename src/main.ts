@@ -106,15 +106,33 @@ function start(pool: Playable[]): void {
    *
    * The committed figure alone let the player queue a day that half-executed:
    * three checks against one spare hand, with the refusal only arriving after
-   * `Print it`. `playDay` counts a reporter worked on a source this morning as
-   * busy for the rest of the day, and this has to agree with it.
+   * `Print it`.
+   *
+   * Counting queued actions is not the same as counting the ones `playDay`
+   * accepts, and the first version got that wrong in both directions: it
+   * ignored a queued hire and fire, and it charged a reporter for a second go
+   * at a source `playDay` refuses for nothing. What it must count is the spend
+   * the rules will actually allow.
    */
-  function freeAfterPlan(): number {
-    const committed = plan.filter(
-      (a) => a.kind === 'check' || a.kind === 'cultivate',
-    ).length;
-    return state.reporters - state.running.length - state.checking.length - committed;
+  function newsroomAfterPlan(): { free: number; heads: number } {
+    // A second go at the same source is refused and costs nothing, so sources
+    // are counted once however many times they were tapped.
+    const worked = new Set<string>();
+    let spent = 0;
+    let heads = state.reporters;
+    for (const action of plan) {
+      if (action.kind === 'hire') heads += 1;
+      if (action.kind === 'fire') heads -= 1;
+      if (action.kind === 'check') spent += 1;
+      if (action.kind === 'cultivate' && !worked.has(action.sourceId)) {
+        worked.add(action.sourceId);
+        spent += 1;
+      }
+    }
+    return { free: heads - state.running.length - state.checking.length - spent, heads };
   }
+
+  const freeAfterPlan = (): number => newsroomAfterPlan().free;
 
   /** Whether the wire will be on tomorrow, given what is already queued. */
   function wireAfterPlan(): boolean {
@@ -132,7 +150,10 @@ function start(pool: Playable[]): void {
     price.textContent = formatPrice(state.pricePence);
     // A reporter checking a tip is as busy as one on a story, and so is one the
     // plan has already spoken for.
-    reporters.textContent = `${Math.max(0, freeAfterPlan())}/${state.reporters}`;
+    // Both halves read from the plan, or a queued hire would show as 2/3 —
+    // a spare hand counted in the numerator and missing from the total.
+    const newsroom = newsroomAfterPlan();
+    reporters.textContent = `${Math.max(0, newsroom.free)}/${newsroom.heads}`;
     // Labelled from what the plan will do, not from what has been printed. The
     // committed state alone made the button contradict the click that had just
     // queued a change: press Take the wire, and it still read Take the wire.
@@ -203,8 +224,13 @@ function start(pool: Playable[]): void {
         // has to name the tip. The headline says nothing about whether it
         // stands up, so this gives away no more than the card already does.
         check.setAttribute('aria-label', `Check: ${story.headline}`);
+        // Already under check counts too, not just already queued. A tip stays
+        // `unverified` for the two days a reporter is on it, so without this
+        // the button came back the next morning, enabled, for work already in
+        // hand — and `playDay` answered "Already looking into it."
+        const running = state.checking.some((c) => c.id === story.id);
         const queued = plan.some((a) => a.kind === 'check' && a.id === story.id);
-        check.disabled = queued || freeAfterPlan() <= 0;
+        check.disabled = running || queued || freeAfterPlan() <= 0;
         check.addEventListener('click', () => {
           plan.push({ kind: 'check', id: story.id });
           render();
