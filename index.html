@@ -80,8 +80,11 @@
             <div class="choices">
               <button type="button" class="cta" id="hire">Hire a reporter</button>
               <button type="button" class="cta" id="fire">Let one go</button>
-              <button type="button" class="cta" id="wire"></button>
-              <button type="button" class="cta" id="buy-stringer"></button>
+              <!-- Labelled here as well as in render(): an empty button has no
+                   accessible name, and these two are nameless in the served
+                   document and in every moment before the first render. -->
+              <button type="button" class="cta" id="wire">Take the wire</button>
+              <button type="button" class="cta" id="buy-stringer">Buy a story</button>
             </div>
           </div>
 

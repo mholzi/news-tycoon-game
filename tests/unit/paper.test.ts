@@ -314,7 +314,7 @@ describe('the payroll', () => {
   it('will not go below the smallest newsroom the rules allow', () => {
     let paper = startPaper({ reporters: MIN_REPORTERS });
     paper = step(paper, [{ kind: 'fire' }]);
-    expect(line(paper, 'You cannot put out a daily with fewer than three.')).toBeDefined();
+    expect(line(paper, `You cannot put out a daily with fewer than ${MIN_REPORTERS}.`)).toBeDefined();
     expect(paper.reporters).toBe(MIN_REPORTERS);
   });
 

@@ -323,6 +323,16 @@ export function playDay(
   const checkedToday = new Set<string>();
   let publishedToday: Story | null = null;
 
+  /**
+   * Reporters with nothing on today. Read at four places, so it is written once.
+   *
+   * A reporter checking a tip is as busy as one on a story, and one worked a
+   * source this morning is busy for the rest of the day. Spelling this out four
+   * times is how the `checking` term came to be missing from one of them.
+   */
+  const free = (): number =>
+    next.reporters - next.running.length - next.checking.length - cultivatedToday;
+
   for (const action of actions) {
     switch (action.kind) {
       case 'hire': {
@@ -338,13 +348,15 @@ export function playDay(
 
       case 'fire': {
         if (next.reporters <= MIN_REPORTERS) {
-          say('You cannot put out a daily with fewer than three.');
+          say(`You cannot put out a daily with fewer than ${MIN_REPORTERS}.`);
           break;
         }
         // Free reporters go first. With nobody free the newest investigation is
-        // cancelled and its lead returns to the front of the queue, so the work
-        // is not lost, only the hand doing it.
-        if (next.reporters - next.running.length - next.checking.length - cultivatedToday <= 0) {
+        // cancelled and its lead returns to the front of the queue, so the story
+        // is not lost, only the hand doing it — and the elapsed days with it,
+        // which is why it has to be said out loud rather than left to the
+        // player to notice a `running` entry vanish.
+        if (free() <= 0) {
           if (next.running.length > 0) {
             let latest = 0;
             for (let i = 1; i < next.running.length; i += 1) {
@@ -352,6 +364,7 @@ export function playDay(
             }
             const [cancelled] = next.running.splice(latest, 1);
             next.leads.unshift(cancelled.slug);
+            say(`Called off the investigation into ${cancelled.slug}.`);
           } else if (next.checking.length > 0) {
             // Only when there is no investigation to give up first. The tip stays
             // on the desk, still unverified: the work is lost, not the story.
@@ -378,7 +391,7 @@ export function playDay(
           say('That source has had its day.');
           break;
         }
-        if (next.reporters - next.running.length - next.checking.length - cultivatedToday <= 0) {
+        if (free() <= 0) {
           say('Nobody spare to work it.');
           break;
         }
@@ -475,7 +488,7 @@ export function playDay(
           say('There is no time left in it.');
           break;
         }
-        if (next.reporters - next.running.length - next.checking.length - cultivatedToday <= 0) {
+        if (free() <= 0) {
           say('Nobody spare to check it.');
           break;
         }
@@ -519,8 +532,7 @@ export function playDay(
 
   // Assignment. Nobody sits idle while a lead waits.
   for (;;) {
-    const free = next.reporters - next.running.length - next.checking.length - cultivatedToday;
-    if (free <= 0 || next.leads.length === 0) break;
+    if (free() <= 0 || next.leads.length === 0) break;
     const slug = next.leads.shift()!;
     next.running.push({ slug, readyOn: next.day + INVESTIGATION_DAYS });
   }
@@ -530,9 +542,16 @@ export function playDay(
   next.running = next.running.filter((i) => i.readyOn > next.day);
   for (const investigation of matured) {
     const episode = bySlug.get(investigation.slug);
-    if (episode !== undefined) {
-      next.available.push(investigationStory(episode, next.day, 1 + PUBLISH_GROWTH));
+    if (episode === undefined) {
+      // Unreachable while the pool a campaign started with is the pool it ends
+      // with: leads only ever come from `nextUnusedSlug`, which reads the same
+      // pool. Said out loud anyway, because the alternative was announcing a
+      // story that never reached the desk and losing six reporter-days in
+      // silence — the ledger claiming the opposite of what happened.
+      say(`${investigation.slug} came to nothing.`);
+      continue;
     }
+    next.available.push(investigationStory(episode, next.day, 1 + PUBLISH_GROWTH));
     say(`${investigation.slug} is ready`);
   }
 
@@ -626,12 +645,12 @@ export function playDay(
       next.available.some((s) => FOLLOW_TRIGGERS.includes(s.source)) &&
       !next.available.some((s) => s.source === 'follow');
 
+    // Yesterday's wire item goes whether or not a new one replaces it: nobody
+    // leads with wire copy two days running.
+    next.available = next.available.filter((s) => s.source !== 'wire');
     if (next.subscribed) {
-      next.available = next.available.filter((s) => s.source !== 'wire');
       next.available.push(wireStory(next.day));
       say('A wire item');
-    } else {
-      next.available = next.available.filter((s) => s.source !== 'wire');
     }
     if (dayHasPlant(next.day)) {
       next.available.push(plantedStory(next.day));
