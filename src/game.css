@@ -173,10 +173,11 @@ a {
   border-top: 1px solid var(--rule);
 }
 
-/* Sits above the desk without covering it: the desk stays usable while this is
-   open, which is the whole reason it is a panel and not a dialog. */
-.price-menu {
-  border-style: dashed;
+/* The book runs long, so it scrolls inside its own box rather than pushing the
+   day off the screen. */
+.record {
+  max-height: 22rem;
+  overflow-y: auto;
 }
 
 /* No figure on this one, and no room for one. The second account is a list
@@ -241,7 +242,7 @@ button.cta {
   they describe elements that only exist once the game is running.
 */
 
-#record li {
+.record li {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
@@ -249,13 +250,13 @@ button.cta {
   border-top: 1px solid var(--rule-soft);
 }
 
-#record .record-from {
+.record .record-from {
   font-family: var(--mono);
   font-size: var(--step--1);
   color: var(--ink-faint);
 }
 
-#voices .voice {
+.voices .voice {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
@@ -270,21 +271,21 @@ button.cta {
   cursor: pointer;
 }
 
-#voices .voice:hover:not(:disabled) {
+.voices .voice:hover:not(:disabled) {
   border-color: var(--accent);
 }
 
-#voices .voice:disabled {
+.voices .voice:disabled {
   cursor: default;
   opacity: 0.55;
 }
 
-#voices .voice.chosen {
+.voices .voice.chosen {
   border-color: var(--accent);
   opacity: 1;
 }
 
-#voices .voice-who {
+.voices .voice-who {
   font-family: var(--mono);
   font-size: var(--step--1);
   letter-spacing: 0.06em;
@@ -292,11 +293,11 @@ button.cta {
   color: var(--accent);
 }
 
-#voices .voice-says {
+.voices .voice-says {
   font-size: var(--step-0);
 }
 
-#voices .voice-note {
+.voices .voice-note {
   font-size: var(--step--1);
   color: var(--ink-soft);
 }
