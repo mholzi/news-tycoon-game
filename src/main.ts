@@ -1,6 +1,7 @@
 import './tokens.css';
 import './game.css';
 import { loadEpisodes, type Playable } from './feed';
+import { clear, load, reconcile, save } from './save';
 import { formatCopies, formatPrice, formatTakings } from './ledger';
 import {
   endingHeading,
@@ -91,7 +92,12 @@ function start(pool: Playable[]): void {
   /** Headlines for anything currently on the desk, so the plan can name them. */
   let headlines = new Map<string, string>();
 
-  let state = startPaper();
+  /*
+   * A restored campaign, settled against the archive as it is now: an episode
+   * that has left the pool since the save was written would otherwise sit in
+   * `leads` for ever, unofferable and unexplained.
+   */
+  let state = reconcile(load() ?? startPaper(), pool);
   let plan: Action[] = [];
 
   function describe(action: Action): string {
@@ -174,6 +180,10 @@ function start(pool: Playable[]): void {
   }
 
   function render(): void {
+    // First, not last. If a later line throws on some future DOM change, the
+    // state that produced it is already on disk, which is the state a bug
+    // report needs.
+    save(state);
     cash.textContent = formatTakings(state.cashPence);
     copies.textContent = formatCopies(state.copies);
     price.textContent = formatPrice(state.pricePence);
@@ -408,6 +418,11 @@ function start(pool: Playable[]): void {
     nextDay.disabled = false;
   });
   el<HTMLButtonElement>('again').addEventListener('click', () => {
+    // Strictly redundant — the render below saves the fresh campaign over the
+    // old one — but "throw this away" should be written as throwing it away,
+    // not left as a consequence of render ordering that a refactor can quietly
+    // remove.
+    clear();
     state = startPaper();
     plan = [];
     render();
