@@ -457,3 +457,124 @@ test('an unchecked tip gives nothing away', async ({ page }) => {
   await page.locator('#next-day').click();
   await expect(page.locator('#reporters')).toHaveText('2/3');
 });
+
+/*
+ * A campaign survives a reload — news-tycoon-game#15.
+ *
+ * These four are the ones that prove the feature, because they exercise the
+ * real `localStorage` in a real browser. The unit tests cover the shape logic
+ * with a stub; nothing there can tell you a reload actually works.
+ */
+
+test('a campaign in progress survives a reload', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+
+  for (let i = 0; i < 5; i += 1) await page.locator('#next-day').click();
+
+  const day = await page.locator('#day').textContent();
+  const cash = await page.locator('#cash').textContent();
+  const before = await page.evaluate(() => localStorage.getItem('news-tycoon:campaign'));
+
+  await page.reload();
+
+  await expect(page.locator('#day')).toHaveText(day ?? '');
+  await expect(page.locator('#cash')).toHaveText(cash ?? '');
+
+  // The rendered strings agree; this asserts the whole state does, which is
+  // what the acceptance criterion actually asks for.
+  const after = await page.evaluate(() => localStorage.getItem('news-tycoon:campaign'));
+  expect(JSON.parse(after ?? '{}').state).toEqual(JSON.parse(before ?? '{}').state);
+});
+
+test('an ending is still there after a reload', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+
+  // Same route to bankruptcy as the closing test above: hire past what the
+  // opening print run carries, then stand still.
+  for (let i = 0; i < 8; i += 1) await page.locator('#hire').click();
+  await page.locator('#next-day').click();
+  for (let i = 0; i < 40; i += 1) {
+    if (await page.locator('#over').isVisible()) break;
+    await page.locator('#next-day').click();
+  }
+  await expect(page.locator('#over')).toBeVisible();
+  const heading = await page.locator('#over-heading').textContent();
+  const text = await page.locator('#over-text').textContent();
+
+  await page.reload();
+
+  // Reaching an ending is the point of a campaign. Losing it to a closed tab
+  // would be a worse feeling than losing an unfinished run.
+  await expect(page.locator('#over')).toBeVisible();
+  await expect(page.locator('#over-heading')).toHaveText(heading ?? '');
+  await expect(page.locator('#over-text')).toHaveText(text ?? '');
+});
+
+test('starting again leaves a day-one campaign behind, not the old one', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+
+  for (let i = 0; i < 8; i += 1) await page.locator('#hire').click();
+  await page.locator('#next-day').click();
+  for (let i = 0; i < 40; i += 1) {
+    if (await page.locator('#over').isVisible()) break;
+    await page.locator('#next-day').click();
+  }
+  await page.locator('#again').click();
+  await page.reload();
+
+  await expect(page.locator('#day')).toHaveText('Day 1');
+  const stored = await page.evaluate(() => localStorage.getItem('news-tycoon:campaign'));
+  expect(JSON.parse(stored ?? '{}').state.day).toBe(1);
+});
+
+test('the game plays through to an ending with storage switched off', async ({ page }) => {
+  const complaints: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() !== 'error' && message.type() !== 'warning') return;
+    // Only ours. `main.ts` warns about pool issues and logs boot failures, and
+    // a browser emits its own noise; neither is this feature's business.
+    if (message.location().url.includes('save')) complaints.push(message.text());
+  });
+
+  // Safari private browsing and a browser with site data switched off both
+  // behave like this. The game has to survive it, because failing to remember
+  // is not a reason to fail to run.
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'localStorage', {
+      get() {
+        throw new Error('storage disabled');
+      },
+    });
+  });
+  await serveFeed(page);
+  await page.goto('/');
+
+  for (let i = 0; i < 8; i += 1) await page.locator('#hire').click();
+  await page.locator('#next-day').click();
+  for (let i = 0; i < 40; i += 1) {
+    if (await page.locator('#over').isVisible()) break;
+    await page.locator('#next-day').click();
+  }
+
+  await expect(page.locator('#over')).toBeVisible();
+  expect(complaints).toEqual([]);
+});
+
+test('a queued plan is not carried across a reload', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+
+  const day = await page.locator('#day').textContent();
+  await page.locator('#hire').click();
+  await page.locator('#wire').click();
+
+  await page.reload();
+
+  // One day's uncommitted intent, cheap to retype. Saving it would mean saving
+  // state `playDay` never validated.
+  await expect(page.locator('#day')).toHaveText(day ?? '');
+  await expect(page.locator('#planned')).toContainText('Nothing planned');
+});
