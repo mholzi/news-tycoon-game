@@ -299,6 +299,16 @@ function start(pool: Playable[]): void {
     }
     ledgerEmpty.hidden = state.ledger.length > 0;
 
+    /*
+     * Which stories are already in tomorrow's issue.
+     *
+     * Read once and used twice: to mark the cards on the desk, and to draw one
+     * slot per story rather than one per tap.
+     */
+    const queuedIds = plan
+      .filter((a): a is Extract<Action, { kind: 'publish' }> => a.kind === 'publish')
+      .map((a) => a.id);
+
     available.replaceChildren();
     headlines = new Map(state.available.map((s) => [s.id, s.headline]));
     // The slot is built from ids alone, so whether a story was ever checked has
@@ -332,6 +342,11 @@ function start(pool: Playable[]): void {
       const says = document.createElement('span');
       says.className = 'voice-says';
       says.textContent = story.headline;
+
+      // The state that was styled in `game.css` and never applied. Tapping a
+      // card put the story in a section that is often off screen on a phone and
+      // changed nothing where the thumb was.
+      if (queuedIds.includes(story.id)) button.classList.add('chosen');
 
       button.append(ref, who, says);
       button.addEventListener('click', () => {
@@ -378,15 +393,26 @@ function start(pool: Playable[]): void {
     // leads, the rest are the inside. Removing is by plan index, not by id —
     // four queued wire items are four identical actions.
     tomorrow.replaceChildren();
-    const queued = plan
-      .map((action, index) => ({ action, index }))
-      .filter((entry) => entry.action.kind === 'publish');
-    for (const [slot, entry] of queued.entries()) {
-      const id = (entry.action as { id: string }).id;
+    /*
+     * One slot per story, not one per tap.
+     *
+     * Tapping a card appends to the plan every time, and that stays true — the
+     * rules accept a repeat and the screen must not lock out a move the rules
+     * allow, which is the reason recorded on the test for it. But `playDay`
+     * runs a story once, so drawing a slot per tap showed six copies of an
+     * issue that would print one. The preview disagreed with the paper.
+     *
+     * So: every tap is still legal, nothing is disabled, and a repeat is said
+     * in words instead of drawn again.
+     */
+    const inIssue = [...new Set(queuedIds)];
+    for (const [slot, id] of inIssue.entries()) {
+      const times = queuedIds.filter((queued) => queued === id).length;
       const li = document.createElement('li');
       li.className = 'tomorrow-slot';
       li.dataset.role = slot === 0 ? 'lead' : 'inside';
-      li.dataset.index = String(entry.index);
+      li.dataset.id = id;
+      if (times > 1) li.dataset.times = String(times);
       // `false` rather than absent when the story has left `available` — the
       // same case the headline fallback below already has to handle.
       li.dataset.unverified = String(unverifiedIds.has(id));
@@ -402,6 +428,13 @@ function start(pool: Playable[]): void {
       says.className = 'voice-says';
       says.textContent = headlines.get(id) ?? id;
 
+      if (times > 1) {
+        const repeat = document.createElement('span');
+        repeat.className = 'voice-note';
+        repeat.textContent = `set ${times} times · runs once`;
+        li.append(repeat);
+      }
+
       const drop = document.createElement('button');
       drop.type = 'button';
       drop.className = 'cta remove';
@@ -410,15 +443,20 @@ function start(pool: Playable[]): void {
       // Removal reads the index off the element, so the attribute the test and
       // the handler use is the same one. Written-but-unread invites a later
       // render to stop setting it without anything going red.
+      // One slot is now one story, so taking it out takes out every tap that
+      // put it there. Backwards, so the indices stay valid as they go.
       drop.addEventListener('click', () => {
-        plan.splice(Number(li.dataset.index), 1);
+        for (let i = plan.length - 1; i >= 0; i -= 1) {
+          const action = plan[i];
+          if (action.kind === 'publish' && action.id === id) plan.splice(i, 1);
+        }
         render();
       });
 
       li.append(ref, who, says, drop);
       tomorrow.append(li);
     }
-    tomorrowEmpty.hidden = queued.length > 0;
+    tomorrowEmpty.hidden = inIssue.length > 0;
     tomorrowSlots.textContent = String(Math.max(0, freeAfterPlan()));
 
     sources.replaceChildren();
