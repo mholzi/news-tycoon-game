@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>News Tycoon — broadsheet layout reference</title>
+    <!--
+      The visual reference for "the desk is the paper".
+
+      This file exists because a spec that points at a picture in a chat log is
+      not executable by anyone who was not in the chat. Variant A, "Broadsheet",
+      was chosen by Markus on 2026-07-31 from three options; this is that
+      variant, in the repo, where the implementer can open it.
+
+      It is a REFERENCE, not a component. Nothing imports it and nothing tests
+      it. The tokens are copied from `src/tokens.css` so it looks like the game;
+      if they drift, this file is the one that is wrong.
+
+      Figures are written the way the game writes them, which is not obvious:
+        cash    formatTakings -> `£412.00`  (GBP, always two decimals)
+        copies  formatCopies  -> `8,400`
+        price   formatPrice   -> `2p`       (NOT `1d` — there is no old money)
+        staff   `#reporters`  -> `2/3`
+        day     `#day`        -> `Day 12`
+      An earlier draft of this reference invented `1d a copy` and `£412` as
+      period flavour. Both contradicted the code and both are corrected here.
+    -->
+    <style>
+      :root {
+        color-scheme: light dark;
+        --ground: #fbfaf8; --raised: #ffffff; --ink: #17191e;
+        --ink-soft: #565d6b; --ink-faint: #646b78;
+        --rule: #e3e1dc; --rule-soft: #efede9; --accent: #8c2f39;
+        --reading: Charter, Georgia, serif;
+        --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+        --desk-page: 62rem;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ground: #121317; --raised: #191b20; --ink: #e9e7e3;
+          --ink-soft: #a3a8b2; --ink-faint: #838a97;
+          --rule: #2c2f36; --rule-soft: #23262c; --accent: #d98089;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--ground); color: var(--ink);
+        font-family: var(--reading); font-size: 1.06rem; line-height: 1.6;
+      }
+      .ref { max-width: 52rem; margin: 0 auto; padding: 2rem 1rem; }
+      .ref h1 { font-size: 1.6rem; margin: 0 0 0.4rem; }
+      .ref > p { color: var(--ink-soft); margin: 0 0 1.4rem; }
+      .ref h2 {
+        font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em;
+        text-transform: uppercase; color: var(--accent);
+        margin: 2.4rem 0 0.8rem;
+      }
+      .frame { border: 1px solid var(--rule); background: var(--raised); overflow-x: auto; }
+
+      /* ---------- the layout itself ---------- */
+      #paper { max-width: var(--desk-page); margin: 0 auto; padding: 1rem; min-width: 700px; }
+      #mast { text-align: center; border-bottom: 3px double var(--ink); padding-bottom: 0.4rem; }
+      #mast-name { font-size: 2.6rem; line-height: 1; margin: 0; font-weight: 700; }
+      #dateline {
+        font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+        text-transform: uppercase; color: var(--ink-soft); margin: 0.5rem 0 0;
+      }
+      #account { display: flex; border-bottom: 1px solid var(--ink); margin-top: 0.6rem; }
+      #account > div {
+        flex: 1; padding: 0.4rem 0.6rem; border-right: 1px solid var(--rule);
+        display: flex; flex-direction: column;
+      }
+      #account > div:last-child { border-right: 0; }
+      #account b { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+      #account span {
+        font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.08em;
+        text-transform: uppercase; color: var(--ink-faint);
+      }
+      #step-tomorrow { margin-top: 0.9rem; }
+      #step-tomorrow > h2 {
+        font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.12em;
+        text-transform: uppercase; color: var(--ink-soft); margin: 0 0 0.5rem;
+        border-bottom: 1px solid var(--rule); padding-bottom: 0.2rem;
+      }
+      #tomorrow { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 2fr 1fr; gap: 0.9rem; }
+      .tomorrow-slot { position: relative; }
+      .tomorrow-slot[data-role='lead'] { grid-row: span 2; }
+      .tomorrow-slot[data-role='inside'] { border-left: 1px solid var(--rule); padding-left: 0.7rem; }
+      .tomorrow-slot[data-role='lead'] .voice-says { font-size: 1.9rem; line-height: 1.05; display: block; }
+      .tomorrow-slot[data-role='inside'] .voice-says { font-size: 1.05rem; line-height: 1.2; display: block; }
+      .voice-who {
+        font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em;
+        text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 0.2rem;
+      }
+      /* Markus 2026-07-31: every story keeps its button. Kept quiet, not hidden:
+         a set page with loud buttons stops reading as a newspaper. */
+      .tomorrow-slot .remove {
+        font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.08em;
+        text-transform: uppercase; background: none; border: 0; padding: 0.3rem 0 0;
+        color: var(--ink-faint); cursor: pointer; text-decoration: underline;
+      }
+      .tomorrow-slot .remove:hover, .tomorrow-slot .remove:focus-visible { color: var(--accent); }
+      #fold {
+        font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.3em;
+        text-transform: uppercase; color: var(--ink-faint); text-align: center;
+        border-top: 3px double var(--ink); border-bottom: 1px solid var(--rule);
+        padding: 0.35rem 0; margin: 1.1rem 0 0.8rem;
+      }
+      #desk { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; }
+      #desk h2 {
+        font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.12em;
+        text-transform: uppercase; color: var(--ink-soft); margin: 0 0 0.4rem;
+        border-bottom: 1px solid var(--rule); padding-bottom: 0.2rem;
+      }
+      .row { display: flex; justify-content: space-between; gap: 0.6rem; padding: 0.2rem 0; font-size: 0.9rem; }
+      .cta {
+        font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.1em;
+        text-transform: uppercase; border: 1px solid var(--ink); background: none;
+        color: var(--ink); padding: 0.35rem 0.6rem; cursor: pointer;
+      }
+      .cta--go { background: var(--accent); border-color: var(--accent); color: #fff; }
+      #book { margin-top: 1rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+
+      /* ---------- the phone ---------- */
+      .phonewrap { display: flex; justify-content: center; }
+      .phone {
+        width: 390px; max-width: 100%; border: 1px solid var(--rule);
+        background: var(--raised); padding: 0; overflow: hidden;
+      }
+      .phone #paper { min-width: 0; padding: 0.8rem 0.9rem 4rem; }
+      .phone #account { position: sticky; top: 0; background: var(--raised); z-index: 2; flex-wrap: wrap; }
+      .phone #account > div { flex: 1 1 50%; border-top: 1px solid var(--rule); }
+      .phone #mast-name { font-size: 1.7rem; }
+      .phone #tomorrow { grid-template-columns: 1fr; }
+      .phone .tomorrow-slot[data-role='lead'] { grid-row: auto; }
+      .phone .tomorrow-slot[data-role='inside'] { border-left: 0; padding-left: 0; border-top: 1px solid var(--rule-soft); padding-top: 0.5rem; }
+      .phone .tomorrow-slot[data-role='lead'] .voice-says { font-size: 1.55rem; }
+      .phone #desk { grid-template-columns: 1fr; }
+      /* The floor the tests assert. A game.css override, not a token change. */
+      .phone .meta, .phone .row { font-size: 1rem; }
+      .phone .cta { min-height: 44px; width: 100%; }
+      .phone .bar {
+        position: sticky; bottom: 0; background: var(--raised);
+        border-top: 1px solid var(--ink); padding: 0.5rem 0.9rem;
+        display: flex; gap: 0.6rem; align-items: center;
+      }
+      .phone .bar .cta { width: auto; flex: 1; }
+    </style>
+  </head>
+  <body>
+    <div class="ref">
+      <h1>Broadsheet — the build reference</h1>
+      <p>
+        Variant A, chosen 2026-07-31. Static markup, real formats, the ids and classes the spec
+        names. Build against this, not against the ASCII sketch in the issue.
+      </p>
+
+      <h2>Desktop</h2>
+      <div class="frame">
+        <main id="paper">
+          <header id="mast">
+            <h1 id="mast-name">News Tycoon</h1>
+            <p id="dateline">No. 12 · in preparation · 2p a copy</p>
+          </header>
+
+          <div id="account">
+            <div><b id="cash">£412.00</b><span>in hand</span></div>
+            <div><b id="copies">8,400</b><span>copies a day</span></div>
+            <div><b id="price">2p</b><span>a copy</span></div>
+            <div><b id="reporters">2/3</b><span>reporters free</span></div>
+            <div><b id="day">Day 12</b><span>of the run</span></div>
+          </div>
+
+          <section id="step-tomorrow">
+            <h2>Tomorrow's issue</h2>
+            <ol id="tomorrow" class="voices">
+              <li class="tomorrow-slot" data-role="lead">
+                <span class="voice-who">leads</span>
+                <span class="voice-says">The advertiser you cannot afford to offend</span>
+                <button type="button" class="remove">Take it out</button>
+              </li>
+              <li class="tomorrow-slot" data-role="inside">
+                <span class="voice-who">inside</span>
+                <span class="voice-says">The lobby is a deal, and everyone signed it</span>
+                <button type="button" class="remove">Take it out</button>
+              </li>
+            </ol>
+            <p class="meta">Reporters left to write: <span id="tomorrow-slots">1</span></p>
+          </section>
+
+          <p id="fold">The desk</p>
+
+          <div id="desk">
+            <section id="step-available">
+              <h2>What can run</h2>
+              <div class="row"><span>Shipping figures hold</span><span>wire</span></div>
+              <div class="row"><span>A name in the ledger</span><span>unchecked</span></div>
+            </section>
+            <section id="step-sources">
+              <h2>What is anyone working on</h2>
+              <div class="row"><span>Dockside</span><span>2/4</span></div>
+              <div class="row"><span>Town hall</span><span>1/4</span></div>
+            </section>
+            <section id="step-staff">
+              <h2>The newsroom</h2>
+              <button type="button" class="cta" id="hire">Hire a reporter</button>
+              <button type="button" class="cta" id="fire">Let one go</button>
+            </section>
+            <section id="step-buy">
+              <h2>What can you buy in</h2>
+              <button type="button" class="cta" id="wire">Take the wire</button>
+              <button type="button" class="cta" id="buy-stringer">Buy a story (£25.00)</button>
+            </section>
+          </div>
+
+          <section id="book">
+            <h2 class="meta">The book</h2>
+            <div class="row"><span>Wages</span><span>−£30.00</span></div>
+            <div class="row"><span>Sales, 8,400 copies</span><span>+£168.00</span></div>
+          </section>
+
+          <p class="meta" id="planned">One story set for tomorrow.</p>
+          <button type="button" class="cta cta--go" id="next-day">Print it</button>
+        </main>
+      </div>
+
+      <h2>Phone — 390px</h2>
+      <div class="phonewrap">
+        <div class="phone">
+          <main id="paper">
+            <header id="mast">
+              <h1 id="mast-name">News Tycoon</h1>
+              <p id="dateline">No. 12 · in preparation · 2p a copy</p>
+            </header>
+            <div id="account">
+              <div><b>£412.00</b><span>in hand</span></div>
+              <div><b>8,400</b><span>copies a day</span></div>
+              <div><b>2p</b><span>a copy</span></div>
+              <div><b>2/3</b><span>reporters free</span></div>
+            </div>
+            <section id="step-tomorrow">
+              <h2>Tomorrow's issue</h2>
+              <ol id="tomorrow" class="voices">
+                <li class="tomorrow-slot" data-role="lead">
+                  <span class="voice-who">leads</span>
+                  <span class="voice-says">The advertiser you cannot afford to offend</span>
+                  <button type="button" class="remove">Take it out</button>
+                </li>
+                <li class="tomorrow-slot" data-role="inside">
+                  <span class="voice-who">inside</span>
+                  <span class="voice-says">The lobby is a deal, and everyone signed it</span>
+                  <button type="button" class="remove">Take it out</button>
+                </li>
+              </ol>
+            </section>
+            <p id="fold">The desk</p>
+            <div id="desk">
+              <section>
+                <h2>What can run</h2>
+                <div class="row"><span>Shipping figures hold</span><span>wire</span></div>
+              </section>
+              <section>
+                <h2>The newsroom</h2>
+                <button type="button" class="cta">Hire a reporter</button>
+              </section>
+            </div>
+          </main>
+          <div class="bar">
+            <span class="meta"><b>£412.00</b></span>
+            <button type="button" class="cta cta--go">Print it</button>
+          </div>
+        </div>
+      </div>
+      <p class="meta" style="margin-top:1rem;color:var(--ink-faint)">
+        The bar is <code>#account</code> pinned to the top and the <code>.choices</code> div holding
+        <code>#next-day</code> pinned to the bottom, both by CSS. Neither element is duplicated, so
+        every id stays unique.
+      </p>
+    </div>
+  </body>
+</html>
