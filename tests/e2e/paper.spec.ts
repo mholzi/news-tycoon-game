@@ -973,3 +973,72 @@ test('an unchecked tip is printed on rougher paper, on the desk and on the page'
   await expect(slot).toHaveCount(1);
   expect(await slot.evaluate((el) => getComputedStyle(el).backgroundImage)).not.toBe('none');
 });
+
+/*
+ * Three ways the game now marks a change it used to make silently.
+ */
+
+test('the book says what each movement left you holding', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+  await expect(page.locator('#game')).toBeVisible();
+  for (let i = 0; i < 3; i += 1) await page.locator('#next-day').click();
+  await page.locator('#finance-toggle').click();
+
+  const rows = await page.evaluate(() =>
+    [...document.querySelectorAll('#ledger li')].map((li) => ({
+      from: li.querySelector('.record-from')?.textContent ?? '',
+      balance: li.querySelector('.record-balance')?.textContent ?? '',
+    })),
+  );
+  expect(rows.length).toBeGreaterThan(2);
+  // Every row, not most of them.
+  expect(rows.filter((r) => r.balance === '')).toEqual([]);
+
+  // The newest row is what the masthead says you have.
+  await expect(page.locator('#cash')).toHaveText(rows[0].balance);
+
+  // And the column descends by each movement. Rows with no amount moved nothing.
+  const money = (s: string) => Number(s.replace(/[^0-9.-]/g, ''));
+  for (let i = 0; i < rows.length - 1; i += 1) {
+    const amount = rows[i].from.includes('·') ? money(rows[i].from.split('·')[1]) : 0;
+    expect(money(rows[i].balance) - money(rows[i + 1].balance)).toBeCloseTo(amount, 2);
+  }
+});
+
+test('cash says how much it moved, and only when it moves', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+  await expect(page.locator('#game')).toBeVisible();
+
+  // Nothing to compare against on the first screen.
+  await expect(page.locator('#cash-delta')).toBeHidden();
+
+  // Re-renders that do not touch money must not invent one.
+  await page.locator('#hire').click();
+  await page.locator('#finance-toggle').click();
+  await page.locator('#finance-toggle').click();
+  await expect(page.locator('#cash-delta')).toBeHidden();
+
+  await page.locator('#next-day').click();
+  await expect(page.locator('#cash-delta')).toBeVisible();
+  await expect(page.locator('#cash-delta')).toHaveText(/^[+-]£[\d,]+\.\d{2}$/);
+});
+
+test('the ending is set as the last edition', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+  await expect(page.locator('#game')).toBeVisible();
+
+  for (let i = 0; i < 8; i += 1) await page.locator('#hire').click();
+  await page.locator('#next-day').click();
+  for (let i = 0; i < 40; i += 1) {
+    if (await page.locator('#over').isVisible()) break;
+    await page.locator('#next-day').click();
+  }
+
+  await expect(page.locator('#over-mast-name')).toHaveText('News Tycoon');
+  // The issue that closed the paper, and it does not claim to be in preparation.
+  await expect(page.locator('#over-dateline')).toHaveText(/^No\. \d+ · closed$/);
+  await expect(page.locator('#over-dateline')).not.toContainText('in preparation');
+});

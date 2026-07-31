@@ -4,15 +4,16 @@ import { loadEpisodes, type Playable } from './feed';
 import { clear, load, reconcile, save } from './save';
 import { formatCopies, formatPrice, formatTakings } from './ledger';
 import {
+  PAPER_NAME,
+  SOURCE_STEPS_TO_LEAD,
+  START_CASH_PENCE,
   dateline,
   endingHeading,
   endingText,
-  PAPER_NAME,
   playDay,
-  SOURCE_STEPS_TO_LEAD,
   startPaper,
-  validatePool,
   type Action,
+  validatePool,
 } from './paper';
 import {
   PUBLISH_RULES,
@@ -91,6 +92,9 @@ function start(pool: Playable[]): void {
   const financeToggle = el<HTMLButtonElement>('finance-toggle');
   const fold = el('fold');
   const printbar = el('printbar');
+  const cashDelta = el('cash-delta');
+  const overMastName = el('over-mast-name');
+  const overDateline = el('over-dateline');
   const desk = el('desk');
   const stepTomorrow = el('step-tomorrow');
   const deskEyebrow = el('desk-eyebrow');
@@ -102,6 +106,20 @@ function start(pool: Playable[]): void {
 
   /** Headlines for anything currently on the desk, so the plan can name them. */
   let headlines = new Map<string, string>();
+  /*
+   * The last cash figure the screen showed, for the delta beside it.
+   *
+   * Tracked against cash rather than against the day, and that is not a detail:
+   * `main.ts` only advances the day `if (!state.over)`, so on the print that
+   * closes or wins a paper the money moves and the day does not. Keyed on the
+   * day, the ending would have shown the previous day's number — which is
+   * exactly when a player most wants to know what the last issue cost.
+   *
+   * Seeded from the state the game boots with, so a campaign restored at day 7
+   * shows no delta until the next print rather than inventing one against a
+   * cash figure it never displayed.
+   */
+  let lastCash: number | null = null;
   let unverifiedIds = new Set<string>();
 
   /*
@@ -221,8 +239,49 @@ function start(pool: Playable[]): void {
     mastName.textContent = PAPER_NAME;
     datelineEl.textContent = dateline(state.day);
 
+    // Only a print moves cash; planning, hiring and opening the books all
+    // re-render without touching it, so comparing the figure itself means the
+    // delta survives every re-render and changes exactly when the money does.
+    if (lastCash !== null && state.cashPence !== lastCash) {
+      const moved = state.cashPence - lastCash;
+      // `formatTakings` gives `-£30.00` and never a `+`, so the sign is added
+      // here rather than left to the formatter.
+      cashDelta.textContent =
+        moved > 0 ? `+${formatTakings(moved)}` : formatTakings(moved);
+      cashDelta.hidden = false;
+    } else if (lastCash === null) {
+      cashDelta.hidden = true;
+    }
+    lastCash = state.cashPence;
+
+    /*
+     * The running balance.
+     *
+     * The book listed movements and never said what they left you holding, so a
+     * bill three days after the decision was just another line. This is the
+     * number that makes it a consequence.
+     *
+     * Derived, never stored: `START_CASH_PENCE` plus every movement up to and
+     * including a line equals the cash after it. Measured over a 40-day run
+     * before this was written — drift zero — which is really a statement about
+     * the economy: every cash movement writes a ledger line carrying the same
+     * number. `paper.test.ts` guards that; if it ever stops being true this
+     * column goes wrong quietly, so the test matters more than the column.
+     *
+     * `state.ledger` is newest-first (`unshift`), so the running total is
+     * accumulated from the END of the array backwards, and over the WHOLE
+     * ledger rather than the visible forty — a balance computed from the slice
+     * would be wrong for every visible row the moment a campaign passes 40.
+     */
+    const balances = new Array<number>(state.ledger.length);
+    let running = START_CASH_PENCE;
+    for (let i = state.ledger.length - 1; i >= 0; i -= 1) {
+      running += state.ledger[i].pence;
+      balances[i] = running;
+    }
+
     ledger.replaceChildren();
-    for (const entry of state.ledger.slice(0, 40)) {
+    for (const [i, entry] of state.ledger.slice(0, 40).entries()) {
       const li = document.createElement('li');
       const what = document.createElement('span');
       what.textContent = entry.text;
@@ -230,7 +289,12 @@ function start(pool: Playable[]): void {
       figure.className = 'record-from';
       figure.textContent =
         entry.pence === 0 ? `Day ${entry.day}` : `Day ${entry.day} · ${formatTakings(entry.pence)}`;
-      li.append(what, figure);
+      const balance = document.createElement('span');
+      balance.className = 'record-balance';
+      // The same formatter as `#cash`, so the newest row and the masthead can
+      // be compared by eye and by test.
+      balance.textContent = formatTakings(balances[i]);
+      li.append(what, figure, balance);
       ledger.append(li);
     }
     ledgerEmpty.hidden = state.ledger.length > 0;
@@ -428,6 +492,18 @@ function start(pool: Playable[]): void {
     if (state.over) {
       overHeading.textContent = endingHeading(state);
       overText.textContent = endingText(state);
+      overMastName.textContent = PAPER_NAME;
+      /*
+       * `state.day` and not `day - 1`: the counter stops advancing the moment
+       * the campaign ends, so it already holds the number of the issue that
+       * finished the paper rather than a next one that will never exist.
+       *
+       * Not `dateline()` either — that one says "in preparation", which is the
+       * opposite of what is true here.
+       */
+      overDateline.textContent = `No. ${state.day} · ${
+        state.won ? 'everyone reads you' : 'closed'
+      }`;
     }
     // Revealed last, after its contents are written, so the panel is never on
     // screen in a state this function has not finished filling in.
@@ -498,6 +574,9 @@ function start(pool: Playable[]): void {
     nextDay.disabled = false;
   });
   el<HTMLButtonElement>('again').addEventListener('click', () => {
+    // A new campaign has nothing to compare against.
+    lastCash = null;
+    cashDelta.hidden = true;
     // Strictly redundant — the render below saves the fresh campaign over the
     // old one — but "throw this away" should be written as throwing it away,
     // not left as a consequence of render ordering that a refactor can quietly
