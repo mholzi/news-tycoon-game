@@ -15,7 +15,7 @@
  */
 
 import type { Playable } from './feed';
-import { formatCopies } from './ledger';
+import { formatCopies, formatPrice } from './ledger';
 import {
   ADVERTORIAL_ID,
   FOLLOW_TRIGGERS,
@@ -144,6 +144,35 @@ export const MIN_REPORTERS = 3;
  * table used to supply, kept so the calibration below did not have to move.
  */
 export const COVER_PRICE_PENCE = 2;
+
+/**
+ * The name on the masthead.
+ *
+ * One constant, written into `#mast-name` by `render()`, because the name used
+ * to be a literal in `index.html` where nothing could keep it honest. Letting
+ * the player name their own paper is a separate feature; when it arrives this
+ * is the single place it changes.
+ */
+export const PAPER_NAME = 'News Tycoon';
+
+/**
+ * The line under the masthead.
+ *
+ * It says **in preparation** and never a date, because the page above the fold
+ * is the issue being built, not one that went out. A masthead over a draft that
+ * implied it had been printed would be the design lying about game state.
+ *
+ * The number is `state.day` and not `day + 1`: the counter advances only when
+ * the paper is printed (the `#next-day` handler in `main.ts`), so the issue you
+ * are assembling on day N is issue N.
+ *
+ * The price comes from the constant rather than `state.pricePence`. They are
+ * equal, `pricePence` is `readonly`, and reading the constant keeps this
+ * function pure — it takes a day and nothing else.
+ */
+export function dateline(day: number): string {
+  return `No. ${day} · in preparation · ${formatPrice(COVER_PRICE_PENCE)} a copy`;
+}
 
 /**
  * What share of the cover price the paper keeps.
