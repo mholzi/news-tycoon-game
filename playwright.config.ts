@@ -1,11 +1,17 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * One project, not two.
+ * Two projects now, and the second one is narrow on purpose.
  *
- * The site runs desktop and mobile because it makes a claim about reading on a
- * phone. The game makes no such claim yet, and a second project would double
- * the run time to assert something nobody has designed.
+ * This used to say "one project, not two": the game made no claim about being
+ * played on a phone, so a mobile project would have doubled the run time to
+ * assert something nobody had designed. The broadsheet layout makes that claim
+ * — a pinned account, a pinned print bar, 44px targets, no sideways scroll —
+ * so there is now something to assert.
+ *
+ * `testMatch` keeps them disjoint. Without it a second project re-runs all 28
+ * desktop tests at 390px, which is slow and which asserts a phone contract on
+ * tests that were never written for one.
  */
 export default defineConfig({
   testDir: './tests/e2e',
@@ -17,7 +23,18 @@ export default defineConfig({
     baseURL: 'http://localhost:4319',
     trace: 'on-first-retry',
   },
-  projects: [{ name: 'desktop', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'desktop',
+      testMatch: /paper\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'mobile',
+      testMatch: /\.mobile\.spec\.ts$/,
+      use: { ...devices['iPhone 13'] },
+    },
+  ],
   webServer: {
     /*
      * Build first, always.
