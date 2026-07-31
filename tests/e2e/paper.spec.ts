@@ -220,6 +220,9 @@ test('a story can be run, and the book records it', async ({ page }) => {
 
   await expect(page.locator('#available .article[data-source="investigation"]')).toHaveCount(0);
   await expect(page.locator('#copies')).not.toHaveText(before ?? '');
+  // The book lives in the finance panel now, which is closed until the cash
+  // figure on the masthead is clicked.
+  await page.locator('#finance-toggle').click();
   // Not the first line any more: arrivals are the last thing a day does, so the
   // newest entry is usually a story turning up rather than the money.
   await expect(page.locator('#ledger li').filter({ hasText: 'Sales' }).first()).toBeVisible();
@@ -418,6 +421,7 @@ test('the wire changes an ordinary day', async ({ page }) => {
   // And it keeps costing, one item at a time.
   await page.locator('#next-day').click();
   await expect(page.locator('#available .article[data-source="wire"]')).toHaveCount(1);
+  await page.locator('#finance-toggle').click();
   await expect(page.locator('#ledger li').filter({ hasText: 'The wire' }).first()).toBeVisible();
 });
 
@@ -607,19 +611,20 @@ test('tomorrow sits above the fold and the desk below it', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#game')).toBeVisible();
 
+  // `account` and `book` are gone: the cash figure moved onto the masthead and
+  // everything else that was in those two panels is now `#finance`, which opens
+  // from it. The order still has to put the issue above the fold and the desk
+  // below it, which is what this test is really for.
   const order = await page.evaluate(() => {
-    const ids = ['mast', 'account', 'step-tomorrow', 'fold', 'desk', 'book', 'printbar'];
+    const ids = ['mast', 'finance', 'step-tomorrow', 'fold', 'desk', 'printbar'];
     return ids.filter((id) => document.getElementById(id) !== null);
   });
-  expect(order).toEqual([
-    'mast',
-    'account',
-    'step-tomorrow',
-    'fold',
-    'desk',
-    'book',
-    'printbar',
-  ]);
+  expect(order).toEqual(['mast', 'finance', 'step-tomorrow', 'fold', 'desk', 'printbar']);
+
+  // The panel is closed until asked for, and the figure that opens it is on the
+  // masthead.
+  await expect(page.locator('#finance')).toBeHidden();
+  await expect(page.locator('#mast #finance-toggle')).toBeVisible();
 
   // `#next-day` must be outside `#desk`: on a phone the print bar is sticky,
   // and a sticky element left inside the desk would never be on screen at the
@@ -628,6 +633,42 @@ test('tomorrow sits above the fold and the desk below it', async ({ page }) => {
     () => document.getElementById('desk')?.contains(document.getElementById('next-day')) ?? true,
   );
   expect(inDesk).toBe(false);
+});
+
+/*
+ * The money is one figure until you ask for the rest.
+ *
+ * What an owner looks at constantly is what is in hand; what they look at
+ * rarely is how it got there. So the masthead carries the cash and the panel
+ * behind it carries the copies, the price, the newsroom and the book. The
+ * `aria-expanded` half is asserted because the panel and the control are one
+ * fact written in two places, and a screen reader reads the one this test would
+ * otherwise let drift.
+ */
+test('the cash figure on the masthead opens and closes finance', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+  await expect(page.locator('#game')).toBeVisible();
+
+  const toggle = page.locator('#finance-toggle');
+  const finance = page.locator('#finance');
+
+  await expect(page.locator('#cash')).toHaveText('£1,500.00');
+  await expect(finance).toBeHidden();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+  await toggle.click();
+  await expect(finance).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  // Everything that used to sit on the page permanently is in here.
+  await expect(page.locator('#finance #copies')).toBeVisible();
+  await expect(page.locator('#finance #price')).toBeVisible();
+  await expect(page.locator('#finance #reporters')).toBeVisible();
+  await expect(page.locator('#finance #ledger')).toBeAttached();
+
+  await toggle.click();
+  await expect(finance).toBeHidden();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 });
 
 test('the lead is set larger than the inside, and both keep their remove button', async ({

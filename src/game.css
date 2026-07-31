@@ -382,13 +382,62 @@ button.cta:disabled {
   margin: var(--space-2) 0 0;
 }
 
-/* ---- the account, now a strip ---- */
+/* ---- what is in hand, on the masthead ---- */
 
-#account {
+/*
+ * A button that does not look like one.
+ *
+ * It sits inside the masthead beside the dateline, so a bordered control would
+ * read as a form on a front page. What says it is pressable is the pointer, the
+ * underline on hover and the focus ring — not a box.
+ */
+#finance-toggle {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: var(--space-2) auto 0;
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  /* One line, always. In the phone masthead this shares a row with the paper's
+     name, and without it `in hand ▾` broke onto a second line and pushed the
+     pinned header taller. */
+  white-space: nowrap;
+}
+
+#finance-toggle:hover .ledger-figure {
+  text-decoration: underline;
+}
+
+/* The caret is the only thing that changes between the two states, so it is
+   written from `aria-expanded` rather than from a second class that could
+   disagree with it. */
+#finance-toggle .meta::after {
+  content: ' ▾';
+}
+
+#finance-toggle[aria-expanded='true'] .meta::after {
+  content: ' ▴';
+}
+
+/* ---- finance, behind the masthead figure ---- */
+
+#finance {
   border: 0;
   border-bottom: 1px solid var(--ink);
-  padding: 0;
+  padding: 0 0 var(--space-3);
   margin-top: var(--space-3);
+}
+
+/* Visible now — the panel it names has no other heading, and it opens on
+   request rather than sitting on the page, so naming it costs nothing
+   permanent. */
+#finance .ledger-label {
+  padding-bottom: var(--space-2);
 }
 
 /*
@@ -567,11 +616,19 @@ button.cta:disabled {
   white-space: nowrap;
 }
 
-#book {
-  border: 0;
+/* The book, now the lower half of the finance panel rather than its own block
+   below the desk. */
+#finance .record {
   border-top: 1px solid var(--rule);
-  margin-top: var(--space-4);
+  margin-top: var(--space-3);
   padding-top: var(--space-3);
+}
+
+/* On day one the book has no entries, and the rule plus the padding above drew
+   an empty band under "Nothing has happened yet." — a divider with nothing on
+   the far side of it. `#ledger-empty` already says what is going on. */
+#finance .record:empty {
+  display: none;
 }
 
 #printbar {
@@ -623,13 +680,96 @@ button.cta:disabled {
   }
 
   /* Sticky, not fixed: fixed would float over the last line of the page at the
-     end of the scroll. Both of these are the elements themselves, moved by CSS. */
-  #account {
+     end of the scroll. Both of these are the elements themselves, moved by CSS.
+
+     The masthead sticks, not the account strip, because the strip is gone: what
+     has to stay reachable is the cash figure, and that now lives in `#mast`
+     alongside the control that opens the rest. A whole masthead pinned at its
+     desktop size would eat a third of a phone screen, so the name comes down to
+     a size that leaves room for the paper under it.
+
+     The cash figure rides beside the name, the way a paper carries its price in
+     the top corner, and the dateline keeps the full width below. Sharing a row
+     with the dateline instead was tried first and was worse: at 375px the cash
+     took half the row and wrapped `NO. 1 · IN PREPARATION · 2P A COPY` onto
+     three lines, making the pinned masthead taller than the layout it saved. */
+  #mast {
     position: sticky;
     top: 0;
     z-index: 2;
     background: var(--ground);
-    margin-top: 0;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'name cash'
+      'dateline dateline';
+    align-items: baseline;
+    column-gap: var(--space-2);
+    text-align: left;
+  }
+
+  /* `nowrap`, because a masthead that breaks its own name across two lines
+     stops reading as a masthead.
+
+     The clamp that used to sit here was tuned on macOS and failed on CI: 342px
+     of content in a 320px viewport. The game ships no webfont, so the name is
+     set in whatever serif the platform has, and the Linux runner's is wider
+     than this machine's. **A size tuned against one platform's font metrics is
+     a bet on the platform you measured**, and the only place that disagreed was
+     the only place that ran the other one.
+
+     So the fix is structural rather than another number. Below 360px the name
+     stops sharing a row with the cash and takes the full width. Eleven
+     characters at this size fit any serif in 320px with room to spare, so no
+     font metric can push the page sideways again. */
+  #mast-name {
+    grid-area: name;
+    font-size: clamp(1.05rem, 4.4vw, 1.4rem);
+    white-space: nowrap;
+    text-align: center;
+    min-width: 0;
+  }
+
+  /* Belt and braces: a grid item's default `min-width: auto` refuses to shrink
+     below its content, which is how a single `nowrap` string drags a whole page
+     wider than the screen. */
+  #finance-toggle {
+    min-width: 0;
+  }
+
+  /* Same reason: the figure beside it gives way a little too. */
+  #finance-toggle .ledger-figure {
+    font-size: clamp(1rem, 3.6vw, 1.15rem);
+  }
+
+  /* The structural half of the fix above. At 360px and under the masthead
+     stacks: the name on its own line, the cash under it, the dateline last.
+     It costs one line of height on the narrowest phones and buys immunity from
+     every font the runner might have. */
+  @media (max-width: 360px) {
+    #mast {
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        'name'
+        'cash'
+        'dateline';
+      justify-items: center;
+      row-gap: var(--space-2);
+    }
+
+    #mast-name {
+      text-align: center;
+    }
+  }
+
+  #dateline {
+    grid-area: dateline;
+  }
+
+  #finance-toggle {
+    grid-area: cash;
+    margin: 0;
+    justify-content: flex-end;
   }
 
   #printbar {
@@ -653,7 +793,8 @@ button.cta:disabled {
 
   .cta,
   .voices .voice,
-  #tomorrow .tomorrow-slot .remove {
+  #tomorrow .tomorrow-slot .remove,
+  #finance-toggle {
     min-height: 44px;
   }
 

@@ -45,8 +45,9 @@
       <section class="stack" id="game" hidden>
         <!--
           The paper. Document order is fixed by the spec and the tests read it:
-          mast, account, tomorrow's front page, the fold, the desk, the book,
-          the print bar.
+          mast, finance, tomorrow's front page, the fold, the desk, the print
+          bar. Finance sits directly under the masthead because that is where
+          the control that opens it lives, and it is closed unless asked for.
 
           `div`, not `main`: the page already has one at the top, and a second
           would be invalid.
@@ -58,19 +59,45 @@
           <header id="mast">
             <h1 id="mast-name"></h1>
             <p id="dateline"></p>
+
+            <!--
+              What is in hand, on the masthead, the way a paper carries its
+              price on the front page.
+
+              It is a button because it opens the rest: an owner glances at the
+              money constantly and reads the books rarely, so one figure stays
+              and everything behind it is a click away. `aria-expanded` and
+              `aria-controls` are what make the pair legible to a screen reader
+              as one control and one panel rather than two unrelated things.
+            -->
+            <button type="button" id="finance-toggle" aria-expanded="false" aria-controls="finance">
+              <span class="ledger-figure" id="cash"></span>
+              <span class="meta">in hand</span>
+            </button>
           </header>
 
-          <!-- One account, now a strip under the masthead rather than a column
-               beside the desk. Same ids, same formats. -->
-          <div class="ledger" id="account">
-            <p class="ledger-label visually-hidden">The account</p>
+          <!--
+            Finance: the figures and the book, behind the masthead figure.
+
+            This was two panels — an always-on account strip under the masthead
+            and a book below the desk. Both were permanently on screen and
+            neither was read every day. What is read every day is the cash, and
+            that is now in the masthead; the rest opens when it is wanted.
+
+            `hidden` by default and toggled from `#finance-toggle`. The ids are
+            the ones the old panels used, because the formats they carry have
+            not changed and the tests read them by id.
+          -->
+          <section class="ledger" id="finance" hidden aria-labelledby="finance-label">
+            <h2 class="ledger-label" id="finance-label">Finance</h2>
             <div class="account-figures">
-              <div><p class="ledger-figure" id="cash"></p><p class="meta">in hand</p></div>
               <div><p class="ledger-figure" id="copies"></p><p class="meta">copies a day</p></div>
               <div><p class="ledger-figure" id="price"></p><p class="meta">a copy</p></div>
               <div><p class="ledger-run"><span id="reporters"></span> reporters · <span id="day"></span></p></div>
             </div>
-          </div>
+            <p class="meta" id="ledger-empty">Nothing has happened yet.</p>
+            <ol class="record" id="ledger"></ol>
+          </section>
 
           <!-- Tomorrow's issue, above the fold, set as a front page. It used to
                sit inside `#desk`; moving it out is why `render()` now hides it
@@ -157,13 +184,6 @@
                 Clear tomorrow's plan
               </button>
             </div>
-          </div>
-
-          <!-- The book keeps its place, below the desk rather than beside it. -->
-          <div class="ledger other" id="book">
-            <p class="ledger-label visually-hidden">The book</p>
-            <p class="meta" id="ledger-empty">Nothing has happened yet.</p>
-            <ol class="record" id="ledger"></ol>
           </div>
 
           <!--
