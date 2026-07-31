@@ -158,6 +158,26 @@ export const dayHasPlant = (day: number): boolean => day % PLANT_EVERY_DAYS === 
 export const dayHasTip = (day: number): boolean => day % TIP_EVERY_DAYS === 0;
 
 /** A tip's truth is fixed by its identity and nothing else. */
+/**
+ * The number a story is known by, in all three of its lives.
+ *
+ * A story is a card on the desk, a slot on the front page, and a line in the
+ * book once the bill has landed. Those three shared nothing a player could see,
+ * and the book in particular printed the raw id — "The bill for council-7", a
+ * slug in a newspaper's ledger.
+ *
+ * Derived, never stored. The card, the slot and the ledger have exactly one
+ * thing in common: the id. A pure function of it is therefore the only
+ * reference all three can compute, and it survives a reload for free because it
+ * is not state at all.
+ *
+ * Reusing `fnv1a`, which this file already trusts to decide whether a tip is
+ * true. Nine hundred slots will collide eventually; two stories sharing a
+ * number is confusing rather than broken, because nothing branches on it. The
+ * test over the real pool is what would say so.
+ */
+export const reference = (id: string): string => `№ ${(fnv1a(id) % 900) + 100}`;
+
 export const tipIsTrue = (id: string): boolean => fnv1a(id) % 100 < TIP_TRUE_PERCENT;
 
 const generated = (

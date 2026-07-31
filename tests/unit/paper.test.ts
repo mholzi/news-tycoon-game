@@ -39,18 +39,7 @@ import {
   type PaperState,
   validatePool,
 } from '../../src/paper';
-import {
-  ADVERTORIAL_GROWTH,
-  ADVERTORIAL_ID,
-  FOLLOW_GROWTH,
-  PLANT_GROWTH,
-  STRINGER_GROWTH,
-  TIP_FALSE_GROWTH,
-  TIP_TRUE_GROWTH,
-  WIRE_GROWTH,
-  type Story,
-  type StorySource,
-} from '../../src/sources';
+import { ADVERTORIAL_GROWTH, ADVERTORIAL_ID, FOLLOW_GROWTH, PLANT_GROWTH, STRINGER_GROWTH, TIP_FALSE_GROWTH, TIP_TRUE_GROWTH, WIRE_GROWTH, reference, type Story, type StorySource } from '../../src/sources';
 
 /** Only `slug`, `lever` and the print delay matter here; the prose makes it a real `Playable`. */
 function episode(slug: string, lever: string, issues = 3): Playable {
@@ -304,7 +293,7 @@ describe('a bill', () => {
     paper = step(paper, [], [episode('a-story', 'access', 3)]);
     expect(paper.copies).toBeGreaterThan(atPublish * 0.97);
     paper = step(paper, [], [episode('a-story', 'access', 3)]);
-    expect(line(paper, 'The bill for a-story')).toBeDefined();
+    expect(line(paper, `The bill for ${reference('a-story')}`)).toBeDefined();
   });
 
   it('bleeds circulation for access', () => {
@@ -323,10 +312,10 @@ describe('a bill', () => {
       money = step(money, [], pool('money'));
       law = step(law, [], pool('law'));
     }
-    expect(line(money, 'The bill for a-story')?.pence).toBe(
+    expect(line(money, `The bill for ${reference('a-story')}`)?.pence).toBe(
       -Math.round(MONEY_COST_MULTIPLE * billBasisPence()),
     );
-    expect(line(law, 'The bill for a-story')?.pence).toBe(
+    expect(line(law, `The bill for ${reference('a-story')}`)?.pence).toBe(
       -Math.round(LAW_COST_MULTIPLE * billBasisPence()),
     );
   });
@@ -340,7 +329,14 @@ describe('a bill', () => {
     for (let i = 0; i < INVESTIGATION_DAYS; i += 1) paper = step(paper, [], pool);
     paper = step(paper, [{ kind: 'publish', id: 'a-story' }], pool);
     for (let i = 0; i < 3; i += 1) paper = step(paper, [], pool);
-    expect(line(paper, 'No charge for a-story.')).toBeDefined();
+    expect(line(paper, `No charge for ${reference('a-story')}.`)).toBeDefined();
+
+    // The other half of the change, and the one a reader sees: the book must no
+    // longer print the raw id. It said "The bill for council-7" for months — a
+    // slug in a newspaper's ledger.
+    for (const entry of paper.ledger) {
+      expect(entry.text).not.toContain('a-story');
+    }
   });
 });
 

@@ -16,6 +16,7 @@ import {
 } from './paper';
 import {
   PUBLISH_RULES,
+  reference,
   STORY_SHELF_DAYS,
   STRINGER_PENCE,
   TIP_CHECK_DAYS,
@@ -98,6 +99,7 @@ function start(pool: Playable[]): void {
 
   /** Headlines for anything currently on the desk, so the plan can name them. */
   let headlines = new Map<string, string>();
+  let unverifiedIds = new Set<string>();
 
   /*
    * A restored campaign, settled against the archive as it is now: an episode
@@ -232,6 +234,10 @@ function start(pool: Playable[]): void {
 
     available.replaceChildren();
     headlines = new Map(state.available.map((s) => [s.id, s.headline]));
+    // The slot is built from ids alone, so whether a story was ever checked has
+    // to travel here separately. Without it the front page cannot show that
+    // what you are about to print is not solid.
+    unverifiedIds = new Set(state.available.filter((s) => s.unverified).map((s) => s.id));
     for (const story of state.available) {
       const li = document.createElement('li');
       li.className = 'article';
@@ -243,17 +249,24 @@ function start(pool: Playable[]): void {
       button.className = 'voice publish';
       button.dataset.id = story.id;
 
+      // Inside the button, before everything else, on purpose: it joins the
+      // button's accessible name, so two publish buttons that would otherwise
+      // read identically are told apart by a screen reader.
+      const ref = document.createElement('span');
+      ref.className = 'voice-ref';
+      ref.textContent = reference(story.id);
+
       const who = document.createElement('span');
       who.className = 'voice-who';
       // Nothing here may betray whether an unchecked tip is true: not the
       // growth, not the consequence, not the answer. Only what it is and who
-      // brought it.
+      // brought it. The reference above says which story, never how solid.
       who.textContent = story.unverified ? 'unchecked' : SOURCE_LABELS[story.source];
       const says = document.createElement('span');
       says.className = 'voice-says';
       says.textContent = story.headline;
 
-      button.append(who, says);
+      button.append(ref, who, says);
       button.addEventListener('click', () => {
         plan.push({ kind: 'publish', id: story.id });
         render();
@@ -307,6 +320,13 @@ function start(pool: Playable[]): void {
       li.className = 'tomorrow-slot';
       li.dataset.role = slot === 0 ? 'lead' : 'inside';
       li.dataset.index = String(entry.index);
+      // `false` rather than absent when the story has left `available` — the
+      // same case the headline fallback below already has to handle.
+      li.dataset.unverified = String(unverifiedIds.has(id));
+
+      const ref = document.createElement('span');
+      ref.className = 'voice-ref';
+      ref.textContent = reference(id);
 
       const who = document.createElement('span');
       who.className = 'voice-who';
@@ -328,7 +348,7 @@ function start(pool: Playable[]): void {
         render();
       });
 
-      li.append(who, says, drop);
+      li.append(ref, who, says, drop);
       tomorrow.append(li);
     }
     tomorrowEmpty.hidden = queued.length > 0;

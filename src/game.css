@@ -661,3 +661,60 @@ button.cta:disabled {
     width: 100%;
   }
 }
+
+/* ==========================================================================
+   A story, in all three of its lives
+   --------------------------------------------------------------------------
+   The same story is a card on the desk, a slot on the front page, and a line in
+   the book once the bill has landed. The reference is what makes those three
+   one object to a player; the paper it is printed on is what says how solid it
+   is.
+   ========================================================================== */
+
+/*
+ * The first line of the card, not a float.
+ *
+ * The spec said "floated right", and the first version of this rule said so
+ * too. It was inert: `.voice` and `.tomorrow-slot` are both flex columns, and
+ * `float` does nothing to a flex item. The reference has been rendering as the
+ * card's first line the whole time, which reads like a reference on a filing
+ * card and is better than what was specified — but the comment claimed a
+ * mechanism that was not running, so it is corrected rather than left to
+ * mislead the next reader.
+ */
+.voice-ref {
+  font-family: var(--mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+/*
+ * Rough stock.
+ *
+ * `src/main.ts` carries the rule this obeys: nothing may betray whether an
+ * unchecked tip is true — not the growth, not the consequence, not the answer.
+ * So the texture says **unverified**, which the card already says in words, and
+ * must not say **wrong**. A warning colour would be a hint, and a hint is the
+ * one thing this game may not give. Hence `--rule-soft`, and no red.
+ *
+ * A 2px mark every 7px: texture at arm's length, not a stripe. It rides on the
+ * dashed border the card already had rather than replacing it.
+ *
+ * No dark-theme rule: `--rule-soft` is already redefined under
+ * `prefers-color-scheme: dark`, so the texture follows the ground on both.
+ */
+.article[data-unverified='true'] .voice,
+.tomorrow-slot[data-unverified='true'] {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--rule-soft) 0 2px,
+    transparent 2px 7px
+  );
+}
+
+/* The point of carrying it onto the page: what you are about to print is
+   visibly not solid, at the moment you commit to printing it. */
+.tomorrow-slot[data-unverified='true'] {
+  padding: var(--space-2);
+  border: 1px dashed var(--rule);
+}
