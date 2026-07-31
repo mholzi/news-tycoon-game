@@ -328,3 +328,288 @@ button.cta:disabled {
 .article[data-unverified='true'] .voice {
   border-style: dashed;
 }
+
+/* ==========================================================================
+   The broadsheet
+   --------------------------------------------------------------------------
+   The game is a newspaper and used to look like a settings screen: one reading
+   column, five headings all open at once. This section makes the page a paper —
+   masthead, dateline, the issue set as a front page, a fold, and the desk below
+   it.
+
+   Nothing here changes what the game does. The slot markup, the ids and the
+   handlers are exactly what they were; `#step-tomorrow` moved above the fold
+   and `#next-day` moved out of `#desk`, and everything else is presentation.
+
+   The build target is `docs/design/broadsheet.html`. If this file and that one
+   disagree about the layout, that one is the contract.
+   ========================================================================== */
+
+:root {
+  /* Wider than `--page` (46rem), which stays the measure for prose. A front
+     page needs room for two columns; an article does not. */
+  --desk-page: 62rem;
+}
+
+#paper {
+  max-width: var(--desk-page);
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ---- masthead ---- */
+
+#mast {
+  text-align: center;
+  border-bottom: 3px double var(--ink);
+  padding-bottom: var(--space-2);
+}
+
+#mast-name {
+  font-size: clamp(2rem, 1.4rem + 3vw, 3.4rem);
+  line-height: 1;
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+#dateline {
+  font-family: var(--mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: var(--space-2) 0 0;
+}
+
+/* ---- the account, now a strip ---- */
+
+#account {
+  border: 0;
+  border-bottom: 1px solid var(--ink);
+  padding: 0;
+  margin-top: var(--space-3);
+}
+
+/*
+ * Kept for a screen reader, taken off the page.
+ *
+ * These three labels named panels that the masthead and the fold now name
+ * visually: "The account" over the figures, "Tomorrow's paper" over the desk,
+ * "The book" over the record. Deleting them would cost a screen-reader user the
+ * heading; leaving them visible repeats on screen what the layout already says.
+ *
+ * One shared class rather than three rules, so a test can exclude them by name.
+ */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.account-figures {
+  display: flex;
+}
+
+.account-figures > div {
+  flex: 1;
+  padding: var(--space-2);
+  border-right: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.account-figures > div:last-child {
+  border-right: 0;
+}
+
+/* ---- tomorrow's front page ---- */
+
+#step-tomorrow {
+  margin-top: var(--space-3);
+}
+
+/* Two columns: the lead takes the wide one, the inside stories stack beside it.
+   `grid-auto-flow: row` keeps a third and fourth inside story going down the
+   narrow column rather than starting a new row under the lead. */
+#tomorrow {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+#tomorrow .tomorrow-slot[data-role='lead'] {
+  grid-column: 1;
+  grid-row: 1 / span 99;
+}
+
+#tomorrow .tomorrow-slot[data-role='inside'] {
+  grid-column: 2;
+  border-left: 1px solid var(--rule);
+  padding-left: var(--space-3);
+}
+
+/* The one deliberate typographic jump on the page. Fixed rem rather than a
+   clamped step so the ratio between lead and inside holds at every width —
+   a clamp would close the gap on a narrow screen, which is exactly where the
+   hierarchy is needed most. */
+#tomorrow .tomorrow-slot[data-role='lead'] .voice-says {
+  font-size: 1.9rem;
+  line-height: 1.05;
+}
+
+#tomorrow .tomorrow-slot[data-role='inside'] .voice-says {
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+/* Kept, on Markus' call, so a story can still be pulled without clearing the
+   whole plan. Quiet rather than absent: a set page with loud buttons beside
+   every headline stops reading as a newspaper. */
+#tomorrow .tomorrow-slot .remove {
+  align-self: flex-start;
+  background: none;
+  border: 0;
+  padding: var(--space-2) 0 0;
+  font-family: var(--mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+#tomorrow .tomorrow-slot .remove:hover,
+#tomorrow .tomorrow-slot .remove:focus-visible {
+  color: var(--accent);
+}
+
+/* ---- the fold ---- */
+
+#fold {
+  font-family: var(--mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  text-align: center;
+  border-top: 3px double var(--ink);
+  border-bottom: 1px solid var(--rule);
+  padding: var(--space-2) 0;
+  margin: var(--space-4) 0 var(--space-3);
+}
+
+/* ---- the desk, below the fold ---- */
+
+#desk {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3) var(--space-4);
+  align-items: start;
+}
+
+#desk > #planned,
+#desk > .choices {
+  grid-column: 1 / -1;
+}
+
+#book {
+  border: 0;
+  border-top: 1px solid var(--rule);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+}
+
+#printbar {
+  margin-top: var(--space-3);
+}
+
+/* ==========================================================================
+   The phone
+   --------------------------------------------------------------------------
+   One breakpoint, 480px, for every rule below.
+
+   The problem this solves was found by rendering the layout at 375px rather
+   than describing it: masthead, account and front page together fill a screen,
+   so "Print it" was two scrolls away every single day. The account sticks to
+   the top and the print bar to the bottom, both of them the real elements
+   rather than copies, so no id appears twice.
+   ========================================================================== */
+
+@media (max-width: 480px) {
+  #tomorrow,
+  #desk {
+    grid-template-columns: 1fr;
+  }
+
+  #tomorrow .tomorrow-slot[data-role='lead'] {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  #tomorrow .tomorrow-slot[data-role='inside'] {
+    grid-column: 1;
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid var(--rule-soft);
+    padding-top: var(--space-3);
+  }
+
+  #tomorrow .tomorrow-slot[data-role='lead'] .voice-says {
+    font-size: 1.55rem;
+  }
+
+  .account-figures {
+    flex-wrap: wrap;
+  }
+
+  .account-figures > div {
+    flex: 1 0 50%;
+    border-top: 1px solid var(--rule);
+  }
+
+  /* Sticky, not fixed: fixed would float over the last line of the page at the
+     end of the scroll. Both of these are the elements themselves, moved by CSS. */
+  #account {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--ground);
+    margin-top: 0;
+  }
+
+  #printbar {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    background: var(--ground);
+    border-top: 1px solid var(--ink);
+    padding: var(--space-2) 0;
+    margin-top: var(--space-3);
+  }
+
+  /* A thumb needs 44px and prose needs 16px. `--step--1` is about 12.5px, so
+     the floor is set here in game.css rather than by editing the token, which
+     is shared with the site and asserted there. */
+  .meta,
+  .record li,
+  .ledger-run {
+    font-size: 1rem;
+  }
+
+  .cta,
+  .voices .voice,
+  #tomorrow .tomorrow-slot .remove {
+    min-height: 44px;
+  }
+
+  #printbar .cta {
+    width: 100%;
+  }
+}

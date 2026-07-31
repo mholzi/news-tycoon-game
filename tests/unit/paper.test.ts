@@ -7,36 +7,37 @@ import {
   CLOSED_LINE,
   COPIES_CEILING,
   COPIES_FLOOR,
-  billBasisPence,
-  endingHeading,
-  endingText,
+  COVER_PRICE_PENCE,
   HIRE_COST_PENCE,
   IDLE_DECAY,
   INSIDE_SHARE,
-  issueGrowth,
   INVESTIGATION_DAYS,
   LAW_COST_MULTIPLE,
   LEVERS,
   MARGIN_SHARE,
   MIN_REPORTERS,
   MONEY_COST_MULTIPLE,
-  playDay,
   PUBLISH_GROWTH,
-  runCampaign,
-  SOURCE_STEP_PENCE,
   SOURCE_STEPS_TO_LEAD,
+  SOURCE_STEP_PENCE,
+  STARTING_SOURCES,
   START_CASH_PENCE,
   START_COPIES,
-  COVER_PRICE_PENCE,
   START_REPORTERS,
-  startPaper,
-  STARTING_SOURCES,
-  validatePool,
   WAGE_PENCE_PER_DAY,
   WON_HEADING,
   WON_LINE,
+  billBasisPence,
+  dateline,
+  endingHeading,
+  endingText,
+  issueGrowth,
+  playDay,
+  runCampaign,
+  startPaper,
   type Action,
   type PaperState,
+  validatePool,
 } from '../../src/paper';
 import {
   ADVERTORIAL_GROWTH,
@@ -1083,5 +1084,38 @@ describe('the endings', () => {
     // did, a replayed winning day wrote the LOSING line into a winning ledger.
     expect(line(after, CLOSED_LINE)).toBeUndefined();
     expect(after.ledger.filter((l) => l.text === WON_LINE)).toHaveLength(1);
+  });
+});
+
+/*
+ * The line under the masthead.
+ *
+ * It exists because the page above the fold is an issue being assembled, not
+ * one that went out, and a masthead that implied otherwise would be the design
+ * lying about game state. These three tests pin the two things that could drift
+ * quietly: the issue number, and the absence of a date.
+ */
+describe('the dateline', () => {
+  it('numbers the issue by the day being worked, not the day after', () => {
+    // The counter advances when the paper is printed, so the issue assembled on
+    // day 1 is issue 1. An off-by-one here would have every player reading a
+    // number one ahead of the paper in front of them.
+    expect(dateline(1)).toBe('No. 1 · in preparation · 2p a copy');
+    expect(dateline(12)).toBe('No. 12 · in preparation · 2p a copy');
+  });
+
+  it('takes the price from the constant, in the format the game prints', () => {
+    // `2p`, not `1d`. An early draft of this feature invented old money as
+    // period flavour and contradicted every other figure on the page.
+    expect(dateline(3)).toContain(`${COVER_PRICE_PENCE}p a copy`);
+    expect(dateline(3)).not.toContain('1d');
+  });
+
+  it('never renders a date, on any day of a long campaign', () => {
+    const monthish = /\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i;
+    for (const day of [1, 7, 31, 200, 999]) {
+      expect(dateline(day)).not.toMatch(monthish);
+      expect(dateline(day)).toContain('in preparation');
+    }
   });
 });

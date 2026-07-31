@@ -5,6 +5,7 @@ import { assertPlayFeed, toPlayable, type PlayFeed } from '../../src/feed';
 import { formatCopies, formatTakings } from '../../src/ledger';
 import { runCampaign, type Action } from '../../src/paper';
 import { TIP_EVERY_DAYS } from '../../src/sources';
+import { makeSave } from '../fixtures/make-save';
 
 /**
  * The paper as a player meets it.
@@ -577,4 +578,225 @@ test('a queued plan is not carried across a reload', async ({ page }) => {
   // state `playDay` never validated.
   await expect(page.locator('#day')).toHaveText(day ?? '');
   await expect(page.locator('#planned')).toContainText('Nothing planned');
+});
+
+/*
+ * The paper as a paper.
+ *
+ * What the broadsheet layout claims that a list did not: there is a masthead,
+ * it says the issue is unprinted, the lead outranks the inside visually, and
+ * the whole thing gets out of the way when the campaign ends.
+ */
+
+test('the masthead names the paper and says the issue is not printed yet', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+  await expect(page.locator('#game')).toBeVisible();
+
+  await expect(page.locator('#mast-name')).toHaveText('News Tycoon');
+  await expect(page.locator('#dateline')).toHaveText('No. 1 · in preparation · 2p a copy');
+  // The one thing the dateline must never do. The page above the fold is an
+  // issue being assembled; a date would claim it had gone out.
+  await expect(page.locator('#dateline')).not.toContainText(
+    /\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i,
+  );
+});
+
+test('tomorrow sits above the fold and the desk below it', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+  await expect(page.locator('#game')).toBeVisible();
+
+  const order = await page.evaluate(() => {
+    const ids = ['mast', 'account', 'step-tomorrow', 'fold', 'desk', 'book', 'printbar'];
+    return ids.filter((id) => document.getElementById(id) !== null);
+  });
+  expect(order).toEqual([
+    'mast',
+    'account',
+    'step-tomorrow',
+    'fold',
+    'desk',
+    'book',
+    'printbar',
+  ]);
+
+  // `#next-day` must be outside `#desk`: on a phone the print bar is sticky,
+  // and a sticky element left inside the desk would never be on screen at the
+  // top of the page.
+  const inDesk = await page.evaluate(
+    () => document.getElementById('desk')?.contains(document.getElementById('next-day')) ?? true,
+  );
+  expect(inDesk).toBe(false);
+});
+
+test('the lead is set larger than the inside, and both keep their remove button', async ({
+  page,
+}) => {
+  await serveFeed(page);
+  await page.goto('/');
+  await expect(page.locator('#game')).toBeVisible();
+
+  const publish = page.locator('#available .voice.publish');
+  await publish.nth(0).click();
+  await publish.nth(0).click();
+
+  const slots = page.locator('#tomorrow .tomorrow-slot');
+  await expect(slots).toHaveCount(2);
+  await expect(slots.nth(0)).toHaveAttribute('data-role', 'lead');
+  await expect(slots.nth(1)).toHaveAttribute('data-role', 'inside');
+
+  // Markus' call: every story keeps a way out that is not "clear the whole plan".
+  await expect(slots.nth(0).locator('.remove')).toBeVisible();
+  await expect(slots.nth(1).locator('.remove')).toBeVisible();
+
+  const sizes = await page.evaluate(() => {
+    const say = (role: string) =>
+      Number.parseFloat(
+        getComputedStyle(
+          document.querySelector(`#tomorrow .tomorrow-slot[data-role='${role}'] .voice-says`)!,
+        ).fontSize,
+      );
+    return { lead: say('lead'), inside: say('inside') };
+  });
+  expect(sizes.lead).toBeGreaterThanOrEqual(sizes.inside * 1.6);
+});
+
+test('an empty issue shows the empty line and no slots', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+  await expect(page.locator('#game')).toBeVisible();
+
+  await expect(page.locator('#tomorrow-empty')).toBeVisible();
+  await expect(page.locator('#tomorrow .tomorrow-slot')).toHaveCount(0);
+});
+
+test('the ending takes the whole paper off the page, not just the desk', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+  await expect(page.locator('#game')).toBeVisible();
+
+  // The same drive the closing test above uses: hire past what the opening
+  // print run can carry, then stand still. Printing empty papers alone does not
+  // close a paper inside a sensible budget, which is what the first version of
+  // this test got wrong.
+  for (let i = 0; i < 8; i += 1) await page.locator('#hire').click();
+  await page.locator('#next-day').click();
+
+  for (let i = 0; i < 40; i += 1) {
+    if (await page.locator('#over').isVisible()) break;
+    await page.locator('#next-day').click();
+  }
+
+  await expect(page.locator('#over')).toBeVisible();
+  // `#step-tomorrow` used to live inside `#desk` and vanished with it. It does
+  // not any more, so it has to be hidden by name — as do the masthead and the
+  // fold, which are furniture for a page that is no longer there.
+  await expect(page.locator('#desk')).toBeHidden();
+  await expect(page.locator('#step-tomorrow')).toBeHidden();
+  await expect(page.locator('#mast')).toBeHidden();
+  await expect(page.locator('#fold')).toBeHidden();
+});
+
+/*
+ * A campaign that was saved before the broadsheet landed still opens.
+ *
+ * The layout changed and the state did not: no new fields, no migration. These
+ * three seed `localStorage` the way `save.ts` writes it and check the figures
+ * the page renders. The expected strings are here rather than in the fixtures —
+ * a fixture that carries its own answer cannot fail, and `load()` discards a
+ * malformed blob silently, so the test would pass while asserting a fresh
+ * campaign it never meant to look at.
+ */
+for (const campaign of [
+  {
+    what: 'a fresh campaign',
+    overrides: { cashPence: 50_000, copies: 1_000, day: 1 },
+    cash: '£500.00',
+    copies: '1,000',
+    day: 'Day 1',
+    dateline: 'No. 1 · in preparation · 2p a copy',
+  },
+  {
+    what: 'a campaign mid-run',
+    overrides: { cashPence: 41_200, copies: 8_400, day: 12 },
+    cash: '£412.00',
+    copies: '8,400',
+    day: 'Day 12',
+    dateline: 'No. 12 · in preparation · 2p a copy',
+  },
+]) {
+  test(`${campaign.what} saved before this change still opens`, async ({ page }) => {
+    await serveFeed(page);
+    await page.goto('/');
+    await expect(page.locator('#game')).toBeVisible();
+
+    await page.evaluate(
+      ([key, blob]) => window.localStorage.setItem(key, blob),
+      ['news-tycoon:campaign', makeSave(campaign.overrides)] as const,
+    );
+    await page.reload();
+    await expect(page.locator('#game')).toBeVisible();
+
+    await expect(page.locator('#cash')).toHaveText(campaign.cash);
+    await expect(page.locator('#copies')).toHaveText(campaign.copies);
+    await expect(page.locator('#day')).toHaveText(campaign.day);
+    await expect(page.locator('#dateline')).toHaveText(campaign.dateline);
+  });
+}
+
+test('an ended campaign saved before this change opens on its ending', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+  await expect(page.locator('#game')).toBeVisible();
+
+  await page.evaluate(
+    ([key, blob]) => window.localStorage.setItem(key, blob),
+    ['news-tycoon:campaign', makeSave({ cashPence: 0, copies: 400, day: 31, over: true })] as const,
+  );
+  await page.reload();
+  await expect(page.locator('#game')).toBeVisible();
+
+  await expect(page.locator('#over')).toBeVisible();
+  await expect(page.locator('#mast')).toBeHidden();
+  await expect(page.locator('#step-tomorrow')).toBeHidden();
+  await expect(page.locator('#fold')).toBeHidden();
+  await expect(page.locator('#desk')).toBeHidden();
+});
+
+/*
+ * The broadsheet in the dark.
+ *
+ * `tokens.css` has carried a dark palette since the game left the site, but
+ * nothing asserted that the new page furniture uses it. The masthead and the
+ * fold are the two elements drawn with the heaviest rules, so they are where an
+ * unthemed colour would be most obvious and most easily missed by an author
+ * whose own machine is set to light.
+ */
+test.describe('dark theme', () => {
+  test.use({ colorScheme: 'dark' });
+
+  test('the masthead and the fold are drawn against the dark ground', async ({ page }) => {
+    await serveFeed(page);
+    await page.goto('/');
+    await expect(page.locator('#game')).toBeVisible();
+
+    const paint = await page.evaluate(() => {
+      const style = (sel: string) => getComputedStyle(document.querySelector(sel)!);
+      return {
+        ground: style('#paper').backgroundColor || getComputedStyle(document.body).backgroundColor,
+        body: getComputedStyle(document.body).backgroundColor,
+        name: style('#mast-name').color,
+        foldRule: style('#fold').borderTopColor,
+        foldText: style('#fold').color,
+      };
+    });
+
+    // The page is dark, and the two elements are not painted in the ground
+    // colour — which is what an unthemed hard-coded value would look like.
+    expect(paint.body).toBe('rgb(18, 19, 23)');
+    expect(paint.name).not.toBe(paint.body);
+    expect(paint.foldRule).not.toBe(paint.body);
+    expect(paint.foldText).not.toBe(paint.body);
+  });
 });

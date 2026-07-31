@@ -4,8 +4,10 @@ import { loadEpisodes, type Playable } from './feed';
 import { clear, load, reconcile, save } from './save';
 import { formatCopies, formatPrice, formatTakings } from './ledger';
 import {
+  dateline,
   endingHeading,
   endingText,
+  PAPER_NAME,
   playDay,
   SOURCE_STEPS_TO_LEAD,
   startPaper,
@@ -81,7 +83,12 @@ function start(pool: Playable[]): void {
   const tomorrow = el<HTMLOListElement>('tomorrow');
   const tomorrowEmpty = el('tomorrow-empty');
   const tomorrowSlots = el('tomorrow-slots');
+  const mast = el('mast');
+  const mastName = el('mast-name');
+  const datelineEl = el('dateline');
+  const fold = el('fold');
   const desk = el('desk');
+  const stepTomorrow = el('step-tomorrow');
   const deskEyebrow = el('desk-eyebrow');
   const overBox = el('over');
   const overHeading = el('over-heading');
@@ -202,6 +209,12 @@ function start(pool: Playable[]): void {
       : `Take the wire (${formatTakings(WIRE_PENCE_PER_DAY)} a day)`;
     buyStringer.textContent = `Buy a story (${formatTakings(STRINGER_PENCE)})`;
     day.textContent = `Day ${state.day}`;
+
+    // The masthead. Written every render rather than once at boot: the dateline
+    // carries the day, and `Start again` puts the campaign back to day 1
+    // without reloading the page.
+    mastName.textContent = PAPER_NAME;
+    datelineEl.textContent = dateline(state.day);
 
     ledger.replaceChildren();
     for (const entry of state.ledger.slice(0, 40)) {
@@ -362,7 +375,19 @@ function start(pool: Playable[]): void {
     // stealing focus back on every click.
     const endingWasHidden = overBox.hidden;
 
+    /*
+     * Four elements now, not one.
+     *
+     * `#step-tomorrow` used to live inside `#desk` and disappeared with it. It
+     * sits above the fold now, so hiding only the desk would leave tomorrow's
+     * front page on screen behind the ending panel — a paper still being made
+     * up for a campaign that is over. The masthead and the fold go with it for
+     * the same reason: they are furniture for a page that is no longer there.
+     */
     desk.hidden = state.over;
+    stepTomorrow.hidden = state.over;
+    mast.hidden = state.over;
+    fold.hidden = state.over;
     if (state.over) {
       overHeading.textContent = endingHeading(state);
       overText.textContent = endingText(state);

@@ -12,8 +12,10 @@
   </head>
   <body>
     <main class="page">
+      <!-- No `<h1>` here any more. The page's one heading is `#mast-name` in
+           the masthead, written from PAPER_NAME, so the paper is named in one
+           place. This section is what shows while the archive is loading. -->
       <section class="stack">
-        <h1>News Tycoon</h1>
         <p class="lede">
           You own the paper and you edit it. Wages leave every morning whether anyone files or
           not, routine copy just about covers them, and the only thing that grows a readership is
@@ -41,68 +43,38 @@
       </section>
 
       <section class="stack" id="game" hidden>
-        <!-- One account. Everything the owner can see is here, and everything
-             here has a figure against it. -->
-        <div class="ledgers">
-          <div class="ledger">
-            <p class="ledger-label">The account</p>
-            <p class="ledger-figure" id="cash"></p>
-            <p class="meta">in hand</p>
-            <p class="ledger-figure" id="copies"></p>
-            <p class="meta">copies a day</p>
-            <p class="ledger-figure" id="price"></p>
-            <p class="meta">a copy</p>
-            <p class="ledger-run"><span id="reporters"></span> reporters · <span id="day"></span></p>
-          </div>
-          <div class="ledger other">
-            <p class="ledger-label">The book</p>
-            <p class="meta" id="ledger-empty">Nothing has happened yet.</p>
-            <ol class="record" id="ledger"></ol>
-          </div>
-        </div>
+        <!--
+          The paper. Document order is fixed by the spec and the tests read it:
+          mast, account, tomorrow's front page, the fold, the desk, the book,
+          the print bar.
 
-        <!-- `tabindex="-1"` on the eyebrow so `Start again` can put focus back
-             on the desk. Restarting hides `#over` and with it the button just
-             clicked, which is the same orphaned-focus problem the ending panel
-             has, in the other direction. -->
-        <div class="issue" id="desk">
-          <p class="eyebrow" id="desk-eyebrow" tabindex="-1">Tomorrow's paper</p>
+          `div`, not `main`: the page already has one at the top, and a second
+          would be invalid.
+        -->
+        <div id="paper">
+          <!-- The masthead. Both strings are written by `render()` — the name
+               from PAPER_NAME and the dateline from dateline(day) — so neither
+               can drift from the code that owns it. -->
+          <header id="mast">
+            <h1 id="mast-name"></h1>
+            <p id="dateline"></p>
+          </header>
 
-          <div id="step-available">
-            <h2>What can run?</h2>
-            <p class="meta" id="available-empty">Nothing has come back from anyone yet.</p>
-            <ul class="voices" id="available"></ul>
-          </div>
-
-          <div id="step-sources">
-            <h2>What is anyone working on?</h2>
-            <ul class="voices" id="sources"></ul>
-          </div>
-
-          <div id="step-staff">
-            <h2>The newsroom</h2>
-            <div class="choices">
-              <button type="button" class="cta" id="hire">Hire a reporter</button>
-              <button type="button" class="cta" id="fire">Let one go</button>
+          <!-- One account, now a strip under the masthead rather than a column
+               beside the desk. Same ids, same formats. -->
+          <div class="ledger" id="account">
+            <p class="ledger-label visually-hidden">The account</p>
+            <div class="account-figures">
+              <div><p class="ledger-figure" id="cash"></p><p class="meta">in hand</p></div>
+              <div><p class="ledger-figure" id="copies"></p><p class="meta">copies a day</p></div>
+              <div><p class="ledger-figure" id="price"></p><p class="meta">a copy</p></div>
+              <div><p class="ledger-run"><span id="reporters"></span> reporters · <span id="day"></span></p></div>
             </div>
           </div>
 
-          <!-- Their own heading. Taking the wire and buying a stringer story
-               are ways to fill a paper, not headcount, and under "The newsroom"
-               nobody scanning by heading would look for them. -->
-          <div id="step-buy">
-            <h2>What can you buy in?</h2>
-            <div class="choices">
-              <!-- Labelled here as well as in render(): an empty button has no
-                   accessible name, and these two are nameless in the served
-                   document and in every moment before the first render. -->
-              <button type="button" class="cta" id="wire">Take the wire</button>
-              <button type="button" class="cta" id="buy-stringer">Buy a story</button>
-            </div>
-          </div>
-
-          <!-- The issue being built. A paper has a front page and an inside, so
-               the desk has to show both and in what order. -->
+          <!-- Tomorrow's issue, above the fold, set as a front page. It used to
+               sit inside `#desk`; moving it out is why `render()` now hides it
+               explicitly when the campaign ends (see the ending block below). -->
           <div id="step-tomorrow">
             <h2>Tomorrow's issue</h2>
             <p class="meta" id="tomorrow-empty">Nothing in tomorrow's issue.</p>
@@ -110,16 +82,74 @@
             <p class="meta">Reporters left to write: <span id="tomorrow-slots">0</span></p>
           </div>
 
-          <p class="meta" id="planned">Nothing planned for tomorrow.</p>
-          <!-- A real button, not a click handler on the paragraph. The plan is
-               eight action kinds deep now, so multi-action days are normal and
-               discarding one by mis-tapping prose is a real cost. -->
-          <div class="choices">
-            <button type="button" class="cta" id="clear-plan" hidden>
-              Clear tomorrow's plan
-            </button>
+          <p id="fold">The desk</p>
+
+          <!-- `tabindex="-1"` on the eyebrow so `Start again` can put focus back
+               on the desk. Restarting hides `#over` and with it the button just
+               clicked, which is the same orphaned-focus problem the ending panel
+               has, in the other direction. -->
+          <div class="issue" id="desk">
+            <p class="eyebrow visually-hidden" id="desk-eyebrow" tabindex="-1">Tomorrow's paper</p>
+
+            <div id="step-available">
+              <h2>What can run?</h2>
+              <p class="meta" id="available-empty">Nothing has come back from anyone yet.</p>
+              <ul class="voices" id="available"></ul>
+            </div>
+
+            <div id="step-sources">
+              <h2>What is anyone working on?</h2>
+              <ul class="voices" id="sources"></ul>
+            </div>
+
+            <div id="step-staff">
+              <h2>The newsroom</h2>
+              <div class="choices">
+                <button type="button" class="cta" id="hire">Hire a reporter</button>
+                <button type="button" class="cta" id="fire">Let one go</button>
+              </div>
+            </div>
+
+            <!-- Their own heading. Taking the wire and buying a stringer story
+                 are ways to fill a paper, not headcount, and under "The newsroom"
+                 nobody scanning by heading would look for them. -->
+            <div id="step-buy">
+              <h2>What can you buy in?</h2>
+              <div class="choices">
+                <!-- Labelled here as well as in render(): an empty button has no
+                     accessible name, and these two are nameless in the served
+                     document and in every moment before the first render. -->
+                <button type="button" class="cta" id="wire">Take the wire</button>
+                <button type="button" class="cta" id="buy-stringer">Buy a story</button>
+              </div>
+            </div>
+
+            <p class="meta" id="planned">Nothing planned for tomorrow.</p>
+            <!-- A real button, not a click handler on the paragraph. The plan is
+                 eight action kinds deep now, so multi-action days are normal and
+                 discarding one by mis-tapping prose is a real cost. -->
+            <div class="choices">
+              <button type="button" class="cta" id="clear-plan" hidden>
+                Clear tomorrow's plan
+              </button>
+            </div>
           </div>
-          <div class="choices">
+
+          <!-- The book keeps its place, below the desk rather than beside it. -->
+          <div class="ledger other" id="book">
+            <p class="ledger-label visually-hidden">The book</p>
+            <p class="meta" id="ledger-empty">Nothing has happened yet.</p>
+            <ol class="record" id="ledger"></ol>
+          </div>
+
+          <!--
+            `#next-day` lives here, outside `#desk`, and that is load-bearing
+            rather than tidy. On a phone this bar is `position: sticky; bottom:0`,
+            and a sticky element only paints inside its containing block — left
+            in `#desk` it would sit below the fold and never be on screen when
+            the page opens.
+          -->
+          <div class="choices" id="printbar">
             <button type="button" class="cta" id="next-day">Print it</button>
           </div>
         </div>
