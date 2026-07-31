@@ -730,13 +730,24 @@ test('the ending takes the whole paper off the page, not just the desk', async (
   }
 
   await expect(page.locator('#over')).toBeVisible();
-  // `#step-tomorrow` used to live inside `#desk` and vanished with it. It does
-  // not any more, so it has to be hidden by name — as do the masthead and the
-  // fold, which are furniture for a page that is no longer there.
-  await expect(page.locator('#desk')).toBeHidden();
-  await expect(page.locator('#step-tomorrow')).toBeHidden();
-  await expect(page.locator('#mast')).toBeHidden();
-  await expect(page.locator('#fold')).toBeHidden();
+
+  /*
+   * Asserted as a property, not as a list.
+   *
+   * The list version of this test passed while a live "Print it" sat above the
+   * ending panel for a day: `#printbar` had been moved out of `#desk` and the
+   * list still named the three elements its author remembered. A list of
+   * elements is a memory test for whoever wrote it.
+   *
+   * What is actually true is simpler and cannot rot: when the paper has closed,
+   * the only thing you can press is "Start again".
+   */
+  const live = await page.evaluate(() =>
+    [...document.querySelectorAll('#game button')]
+      .filter((b) => (b as HTMLElement).offsetParent !== null)
+      .map((b) => b.id || (b.textContent ?? '').trim().slice(0, 30)),
+  );
+  expect(live).toEqual(['again']);
 });
 
 /*

@@ -90,6 +90,7 @@ function start(pool: Playable[]): void {
   const finance = el('finance');
   const financeToggle = el<HTMLButtonElement>('finance-toggle');
   const fold = el('fold');
+  const printbar = el('printbar');
   const desk = el('desk');
   const stepTomorrow = el('step-tomorrow');
   const deskEyebrow = el('desk-eyebrow');
@@ -410,6 +411,11 @@ function start(pool: Playable[]): void {
     stepTomorrow.hidden = state.over;
     mast.hidden = state.over;
     fold.hidden = state.over;
+    // `#printbar` was inside `#desk` until the broadsheet moved it out so the
+    // sticky bar would work on a phone, and hiding the desk stopped covering
+    // it. A closed paper offered a live "Print it" for a day because this list
+    // named the elements its author remembered instead of the ones that moved.
+    printbar.hidden = state.over;
     /*
      * Finance goes with the masthead, and closes rather than just hiding.
      *
