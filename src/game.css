@@ -859,3 +859,80 @@ button.cta:disabled {
   padding: var(--space-2);
   border: 1px dashed var(--rule);
 }
+
+/* ==========================================================================
+   Marking the change
+   --------------------------------------------------------------------------
+   Three places the game moved without saying so: the book listed movements and
+   never a balance, the cash changed silently, and the ending arrived as a
+   heading and a small button.
+   ========================================================================== */
+
+/* The balance sits to the right of the movement, quieter than it: the movement
+   is the event, the balance is the context it lands in. */
+.record-balance {
+  font-family: var(--mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.record li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: var(--space-3);
+  align-items: baseline;
+}
+
+.record li .record-from {
+  grid-column: 1;
+}
+
+.record li .record-balance {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+/* The movement the last print made. Stated, not animated — the point is that
+   the number is accounted for, not that it draws attention to itself. */
+.cash-delta {
+  font-family: var(--mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+  margin-left: var(--space-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The last edition. */
+#over-mast {
+  text-align: center;
+  border-bottom: 3px double var(--ink);
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+#over-mast-name {
+  font-size: clamp(1.6rem, 1.2rem + 2vw, 2.4rem);
+  line-height: 1;
+  margin: 0;
+  font-weight: 700;
+}
+
+#over-dateline {
+  font-family: var(--mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: var(--space-2) 0 0;
+}
+
+/* Matching `#next-day`: the button that ends a run should carry the same weight
+   as the one that ran it. */
+#again {
+  width: 100%;
+  min-height: 44px;
+}

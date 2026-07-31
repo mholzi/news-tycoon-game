@@ -9,9 +9,12 @@ import {
   COPIES_CEILING,
   COPIES_FLOOR,
   HIRE_COST_PENCE,
+  START_CASH_PENCE,
   START_COPIES,
   WAGE_PENCE_PER_DAY,
   billBasisPence,
+  runCampaign,
+  type Action,
 } from '../../src/paper';
 
 /**
@@ -451,5 +454,34 @@ describe('the archive', () => {
     // The advertorial is permanent, so the desk is never truly empty.
     expect(end.available.filter((s) => s.source === 'investigation')).toHaveLength(0);
     expect(end.cashPence).toBeGreaterThan(0);
+  });
+});
+
+/*
+ * Every movement of cash writes a ledger line carrying the same number.
+ *
+ * This is the invariant the running balance in the book is derived from, and it
+ * is worth more than the column it feeds. The balance is not stored; it is
+ * `START_CASH_PENCE` plus every line up to a point. If a future change ever
+ * moves cash without saying so in the ledger — or says a different number — the
+ * column goes wrong silently for every row below it.
+ *
+ * Driven over a long, varied run rather than a quiet one: a 40-day campaign
+ * that never spends anything would satisfy this while guarding nothing.
+ */
+describe('the ledger reconciles to the cash', () => {
+  it('accounts for every penny across a worked campaign', () => {
+    const days: Action[][] = Array.from({ length: 40 }, (_, i) => {
+      const day: Action[] = [{ kind: 'cultivate', sourceId: 'council' }];
+      if (i % 5 === 0) day.push({ kind: 'buy-stringer' });
+      if (i % 9 === 0) day.push({ kind: 'hire' });
+      return day;
+    });
+
+    const end = runCampaign(pool, days).at(-1)!;
+    const moved = end.ledger.reduce((total, line) => total + line.pence, 0);
+
+    expect(end.ledger.length).toBeGreaterThan(50);
+    expect(START_CASH_PENCE + moved).toBe(end.cashPence);
   });
 });

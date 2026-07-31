@@ -72,6 +72,11 @@
             -->
             <button type="button" id="finance-toggle" aria-expanded="false" aria-controls="finance">
               <span class="ledger-figure" id="cash"></span>
+              <!-- The movement the last print produced. Hidden until there is
+                   one, and `aria-hidden` because the button's name is the
+                   figure and "in hand"; a delta read out after it would make
+                   the control's name change every day. -->
+              <span class="cash-delta" id="cash-delta" aria-hidden="true" hidden></span>
               <span class="meta">in hand</span>
             </button>
           </header>
@@ -207,6 +212,22 @@
              `tabindex="-1"` so `render()` can move focus here when the campaign
              ends; the same render hides the button that was just clicked. -->
         <div class="issue" id="over" hidden>
+          <!--
+            The last edition.
+
+            The ending used to be a heading and a small button — the most final
+            moment in the game, set like a form validation message. It gets the
+            masthead back once, as the issue that closed the paper.
+
+            A `<p>` and not a heading: `#over-heading` below is the ending's
+            heading and the focus target `render()` moves to, and putting a
+            second heading above it would change both the outline and where a
+            screen reader lands.
+          -->
+          <div id="over-mast">
+            <p id="over-mast-name"></p>
+            <p id="over-dateline"></p>
+          </div>
           <h2 id="over-heading" tabindex="-1">The paper has closed</h2>
           <p id="over-text"></p>
           <div class="choices">
