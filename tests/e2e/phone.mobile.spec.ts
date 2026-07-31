@@ -121,3 +121,28 @@ for (const width of [320, 375]) {
     expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
   });
 }
+
+/*
+ * The masthead is the first thing on the screen.
+ *
+ * It was not. An introduction written for the loading state stayed on the page
+ * after the game arrived and took the top half of the first screen, so a player
+ * opened a newspaper and read an essay about the newspaper. Screenshots found
+ * it; no assertion did, because every element it should have caught was
+ * technically in the viewport.
+ *
+ * This is the guard. Not "the text is gone" — that would pass the moment
+ * someone reworded it — but "the masthead is what you see first", which is the
+ * property that actually matters.
+ */
+test('the paper opens on the masthead, not on an explanation', async ({ page }) => {
+  await openGame(page);
+
+  await expect(page.locator('#mast-name')).toBeInViewport();
+  await expect(page.locator('#dateline')).toBeInViewport();
+
+  // And it is near the top rather than merely on screen: nothing taller than a
+  // small margin sits above it.
+  const top = await page.locator('#mast').evaluate((el) => el.getBoundingClientRect().top);
+  expect(top).toBeLessThan(120);
+});
