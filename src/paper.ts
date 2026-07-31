@@ -19,10 +19,10 @@ import { formatCopies, formatPrice } from './ledger';
 import {
   ADVERTORIAL_ID,
   FOLLOW_TRIGGERS,
+  PUBLISH_RULES,
   STORY_SHELF_DAYS,
   STRINGER_PENCE,
   TIP_CHECK_DAYS,
-  PUBLISH_RULES,
   WIRE_PENCE_PER_DAY,
   advertorialStory,
   dayHasPlant,
@@ -30,11 +30,12 @@ import {
   followStory,
   investigationStory,
   plantedStory,
+  reference,
   stringerStory,
   tipIsTrue,
   tipStory,
-  wireStory,
   type Story,
+  wireStory,
 } from './sources';
 
 export type { Story, StorySource } from './sources';
@@ -743,7 +744,7 @@ export function playDay(
         if (story.paysPence !== 0) next.cashPence += story.paysPence;
         // A tip published mid-check has nothing left to check.
         next.checking = next.checking.filter((c) => c.id !== story.id);
-        say(`Published ${story.id}`, story.paysPence);
+        say(`Published ${reference(story.id)}`, story.paysPence);
         break;
       }
     }
@@ -767,11 +768,11 @@ export function playDay(
       // pool. Said out loud anyway, because the alternative was announcing a
       // story that never reached the desk and losing six reporter-days in
       // silence — the ledger claiming the opposite of what happened.
-      say(`${investigation.slug} came to nothing.`);
+      say(`${reference(investigation.slug)} came to nothing.`);
       continue;
     }
     next.available.push(investigationStory(episode, next.day, 1 + PUBLISH_GROWTH));
-    say(`${investigation.slug} is ready`);
+    say(`${reference(investigation.slug)} is ready`);
   }
 
   // Checks resolve with them. A tip that stands up keeps its place and its age;
@@ -783,7 +784,7 @@ export function playDay(
     if (at === -1) continue;
     if (tipIsTrue(check.id)) {
       next.available[at] = { ...next.available[at], unverified: false };
-      say(`${check.id} stands up`);
+      say(`${reference(check.id)} stands up`);
     } else {
       next.available.splice(at, 1);
       say('Nothing in it after all.');
@@ -833,22 +834,22 @@ export function playDay(
     switch (bill.lever) {
       case 'access':
         next.copies *= ACCESS_FACTOR;
-        say(`The bill for ${bill.id}`);
+        say(`The bill for ${reference(bill.id)}`);
         break;
       case 'money': {
         const cost = Math.round(MONEY_COST_MULTIPLE * billBasisPence());
         next.cashPence -= cost;
-        say(`The bill for ${bill.id}`, -cost);
+        say(`The bill for ${reference(bill.id)}`, -cost);
         break;
       }
       case 'law': {
         const cost = Math.round(LAW_COST_MULTIPLE * billBasisPence());
         next.cashPence -= cost;
-        say(`The bill for ${bill.id}`, -cost);
+        say(`The bill for ${reference(bill.id)}`, -cost);
         break;
       }
       default:
-        say(`No charge for ${bill.id}.`);
+        say(`No charge for ${reference(bill.id)}.`);
     }
   }
   next.copies = clamp(next.copies);
@@ -904,7 +905,7 @@ export function playDay(
     for (const story of next.available) {
       const ages = story.source !== 'advertorial' && story.source !== 'investigation';
       if (ages && next.day - story.offeredOn >= STORY_SHELF_DAYS) {
-        say(`${story.id} is old news.`);
+        say(`${reference(story.id)} is old news.`);
       } else {
         kept.push(story);
       }

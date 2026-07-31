@@ -855,3 +855,69 @@ test('later lays out in two columns on a desktop', async ({ page }) => {
   expect(layout.tracks.trim().split(/\s+/)).toHaveLength(2);
   expect(layout.sameRow).toBeLessThanOrEqual(2);
 });
+
+/*
+ * A story is one object across its three lives.
+ *
+ * The reference is what says so. It is derived from the id rather than stored,
+ * which is exactly why it has to be asserted end to end: nothing but the screen
+ * proves the desk, the front page and the book agree.
+ */
+test('a story carries the same reference onto the front page', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+  await expect(page.locator('#game')).toBeVisible();
+
+  const card = page.locator('#available .article').first();
+  const onDesk = await card.locator('.voice-ref').textContent();
+  expect(onDesk).toMatch(/^№ \d{3}$/);
+
+  await card.locator('.voice.publish').click();
+
+  const onPage = await page.locator('#tomorrow .tomorrow-slot .voice-ref').first().textContent();
+  expect(onPage).toBe(onDesk);
+});
+
+/*
+ * Rough stock, and the line it must not cross.
+ *
+ * `main.ts` carries the rule: nothing may betray whether an unchecked tip is
+ * true. The texture says unverified — which the card already says in words —
+ * and must never say wrong. So this asserts the texture is present and that it
+ * is drawn in the quiet token, not the accent.
+ */
+test('an unchecked tip is printed on rougher paper, on the desk and on the page', async ({
+  page,
+}) => {
+  await serveFeed(page);
+  await page.goto('/');
+  await expect(page.locator('#game')).toBeVisible();
+
+  // Walk until a tip is on the desk. Tips arrive on a fixed cadence.
+  const tip = page.locator("#available .article[data-unverified='true']").first();
+  for (let day = 0; day < 30; day += 1) {
+    if ((await tip.count()) > 0) break;
+    await page.locator('#next-day').click();
+  }
+  await expect(tip).toHaveCount(1);
+
+  const stock = await tip.locator('.voice').evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { image: s.backgroundImage, accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() };
+  });
+  expect(stock.image).not.toBe('none');
+  // The one thing it must not do: read as a warning. A warning would be a hint.
+  expect(stock.image).not.toContain(stock.accent);
+
+  // A checked story beside it has none of that.
+  const checked = page.locator("#available .article[data-unverified='false'] .voice").first();
+  if ((await checked.count()) > 0) {
+    expect(await checked.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe('none');
+  }
+
+  // And it follows the story onto the page, which is the point of the treatment.
+  await tip.locator('.voice.publish').click();
+  const slot = page.locator("#tomorrow .tomorrow-slot[data-unverified='true']").first();
+  await expect(slot).toHaveCount(1);
+  expect(await slot.evaluate((el) => getComputedStyle(el).backgroundImage)).not.toBe('none');
+});

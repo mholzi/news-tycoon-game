@@ -1,7 +1,10 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { Playable } from '../../src/feed';
 import {
   ADVERTORIAL_GROWTH,
+  ADVERTORIAL_ID,
   ADVERTORIAL_PENCE,
   FOLLOW_GROWTH,
   FOLLOW_TRIGGERS,
@@ -21,13 +24,14 @@ import {
   TIP_TRUE_PERCENT,
   WIRE_GROWTH,
   WIRE_PENCE_PER_DAY,
+  advertorialStory,
   dayHasPlant,
   dayHasTip,
   fnv1a,
-  headlineFor,
-  advertorialStory,
   followStory,
+  headlineFor,
   plantedStory,
+  reference,
   stringerStory,
   tipIsTrue,
   tipStory,
@@ -245,7 +249,7 @@ describe('the advertorial', () => {
   it('pays on the day it runs and costs readers', () => {
     const before = startPaper();
     const after = step(before, [{ kind: 'publish', id: 'advertorial' }]);
-    expect(line(after, 'Published advertorial')?.pence).toBe(ADVERTORIAL_PENCE);
+    expect(line(after, `Published ${reference(ADVERTORIAL_ID)}`)?.pence).toBe(ADVERTORIAL_PENCE);
     expect(after.copies).toBeCloseTo(before.copies * ADVERTORIAL_GROWTH, 6);
   });
 });
@@ -299,7 +303,7 @@ describe('a tip', () => {
 
     if (tipIsTrue(tip.id)) {
       expect(paper.available.find((s) => s.id === tip.id)?.unverified).toBe(false);
-      expect(line(paper, `${tip.id} stands up`)).toBeDefined();
+      expect(line(paper, `${reference(tip.id)} stands up`)).toBeDefined();
     } else {
       expect(ids(paper)).not.toContain(tip.id);
       expect(line(paper, 'Nothing in it after all.')).toBeDefined();
@@ -359,7 +363,7 @@ describe('a tip', () => {
     for (let i = 0; i < TIP_CHECK_DAYS; i += 1) paper = step(paper);
 
     expect(paper.available.find((s) => s.id === 'tip-33')?.unverified).toBe(false);
-    expect(line(paper, 'tip-33 stands up')).toBeDefined();
+    expect(line(paper, `${reference('tip-33')} stands up`)).toBeDefined();
   });
 
   it('pays a true tip like a bought story and bills nothing', () => {
@@ -464,7 +468,7 @@ describe('the shelf', () => {
   it('takes old news off the desk and leaves the advertorial alone', () => {
     let paper = startPaper();
     for (let i = 0; i < STORY_SHELF_DAYS + PLANT_EVERY_DAYS + 2; i += 1) paper = step(paper);
-    expect(line(paper, `planted-${PLANT_EVERY_DAYS} is old news.`)).toBeDefined();
+    expect(line(paper, `${reference(`planted-${PLANT_EVERY_DAYS}`)} is old news.`)).toBeDefined();
     expect(ids(paper)).toContain('advertorial');
   });
 
@@ -475,5 +479,43 @@ describe('the shelf', () => {
     }
     for (let i = 0; i < INVESTIGATION_DAYS + STORY_SHELF_DAYS + 2; i += 1) paper = step(paper);
     expect(ids(paper)).toContain('a-story');
+  });
+});
+
+/*
+ * The number a story is known by.
+ *
+ * It exists so the three places a story appears — the desk, the front page, the
+ * book — are visibly one object. The book in particular used to print the raw
+ * id: "The bill for council-7", a slug in a newspaper's ledger.
+ *
+ * Derived, never stored, so these tests are the whole contract.
+ */
+describe('reference', () => {
+  it('is three digits, and the same every time it is asked', () => {
+    expect(reference('a-story')).toMatch(/^№ \d{3}$/);
+    expect(reference('a-story')).toBe(reference('a-story'));
+  });
+
+  it('gives all 36 episodes in the real pool a distinct number', () => {
+    // The fixture keys episodes on `slug`; `id: episode.slug` is the mapping
+    // the game uses. Asserted against the pool the game actually ships, not a
+    // made-up set, because a collision here is what would send two stories to
+    // the book under one number.
+    const pool = JSON.parse(
+      readFileSync(join(process.cwd(), 'tests/fixtures/pool-36.json'), 'utf-8'),
+    ) as { episodes: { slug: string }[] };
+    const refs = pool.episodes.map((e) => reference(e.slug));
+    expect(refs).toHaveLength(36);
+    expect(new Set(refs).size).toBe(36);
+  });
+
+  it('keeps the generated id shapes distinct too', () => {
+    // Episode slugs are only one of the three id shapes. `<source>-<day>` and
+    // the fixed advertorial id get references as well, and nothing else checks
+    // them.
+    const generated = ['wire-3', 'stringer-12', 'tip-7', 'council-7', 'advertorial'];
+    const refs = generated.map(reference);
+    expect(new Set(refs).size).toBe(generated.length);
   });
 });
