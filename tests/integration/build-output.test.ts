@@ -79,6 +79,9 @@ describe('the broadsheet id contract', () => {
     'reporters',
     'day',
     'step-tomorrow',
+    'today',
+    'later',
+    'later-label',
     'tomorrow',
     'tomorrow-empty',
     'tomorrow-slots',
@@ -122,6 +125,19 @@ describe('the broadsheet id contract', () => {
     // suite instead — this file reads files, it does not run a browser.
     expect(html).toContain('<header id="mast">');
     expect(html).toContain('<p id="fold">The desk</p>');
+  });
+
+  it('groups the desk into today and later', () => {
+    const html = readFileSync(join(DIST, 'index.html'), 'utf-8');
+    // The split is the whole change: what can reach tomorrow's page, against
+    // what buys something on some other day.
+    expect(html).toContain('<section id="today">');
+    expect(html).toContain('<section id="later" aria-labelledby="later-label">');
+    expect(html).toContain('<h2 class="group-label" id="later-label">Pays off later</h2>');
+    // `#today` is named by the heading already inside it, not by a second label.
+    const today = html.slice(html.indexOf('<section id="today">'), html.indexOf('<section id="later"'));
+    expect(today).toContain('id="step-available"');
+    expect(today).not.toContain('group-label');
   });
 
   it('keeps exactly one h1, and it is the masthead', () => {
