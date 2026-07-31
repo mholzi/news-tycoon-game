@@ -708,23 +708,58 @@ button.cta:disabled {
     text-align: left;
   }
 
-  /* `nowrap`, and sized to fit beside the cash: a masthead that breaks its own
-     name across two lines stops reading as a masthead.
+  /* `nowrap`, because a masthead that breaks its own name across two lines
+     stops reading as a masthead.
 
-     The size is a clamp rather than the flat 1.4rem it started as, because
-     `nowrap` at a fixed size cannot give way — at 320px the name and the cash
-     together were wider than the screen and the whole page scrolled sideways.
-     Scaling with the viewport keeps one line on the narrowest phone tested. */
+     The clamp that used to sit here was tuned on macOS and failed on CI: 342px
+     of content in a 320px viewport. The game ships no webfont, so the name is
+     set in whatever serif the platform has, and the Linux runner's is wider
+     than this machine's. **A size tuned against one platform's font metrics is
+     a bet on the platform you measured**, and the only place that disagreed was
+     the only place that ran the other one.
+
+     So the fix is structural rather than another number. Below 360px the name
+     stops sharing a row with the cash and takes the full width. Eleven
+     characters at this size fit any serif in 320px with room to spare, so no
+     font metric can push the page sideways again. */
   #mast-name {
     grid-area: name;
     font-size: clamp(1.05rem, 4.4vw, 1.4rem);
     white-space: nowrap;
     text-align: center;
+    min-width: 0;
+  }
+
+  /* Belt and braces: a grid item's default `min-width: auto` refuses to shrink
+     below its content, which is how a single `nowrap` string drags a whole page
+     wider than the screen. */
+  #finance-toggle {
+    min-width: 0;
   }
 
   /* Same reason: the figure beside it gives way a little too. */
   #finance-toggle .ledger-figure {
     font-size: clamp(1rem, 3.6vw, 1.15rem);
+  }
+
+  /* The structural half of the fix above. At 360px and under the masthead
+     stacks: the name on its own line, the cash under it, the dateline last.
+     It costs one line of height on the narrowest phones and buys immunity from
+     every font the runner might have. */
+  @media (max-width: 360px) {
+    #mast {
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        'name'
+        'cash'
+        'dateline';
+      justify-items: center;
+      row-gap: var(--space-2);
+    }
+
+    #mast-name {
+      text-align: center;
+    }
   }
 
   #dateline {
