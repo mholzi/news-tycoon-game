@@ -17,8 +17,18 @@ jobs:
 
       - run: npm ci
 
-      - name: Install the browser Playwright needs
-        run: npx playwright install --with-deps chromium
+      # Two browsers now. The desktop project is Chromium; the mobile project is
+      # iPhone 13, which Playwright drives with WebKit. Installing Chromium alone
+      # made every mobile test fail with "Executable doesn't exist" while the
+      # same suite passed locally, because a dev machine already has WebKit.
+      #
+      # WebKit and not a Chromium phone profile on purpose: the mobile suite
+      # exists to hold a claim about being played on a phone, and `position:
+      # sticky` — which the pinned account and print bar both depend on — is
+      # where iOS Safari has the longest history of behaving differently.
+      # Swapping to Chromium would make CI green by testing the easier browser.
+      - name: Install the browsers Playwright needs
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Build
         run: npm run build
