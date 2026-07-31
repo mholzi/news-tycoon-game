@@ -298,9 +298,13 @@ test('queueing one story twice costs one reporter, not two', async ({ page }) =>
   await serveFeed(page);
   await page.goto('/');
 
-  // The publish button appends on every tap and nothing dedupes it, so this is
-  // one misclick away. `playDay` runs the story once and refuses the repeat for
-  // nothing; the screen has to agree, or it locks out work the rules allow.
+  // The publish button still appends on every tap and nothing is disabled: the
+  // rules accept a repeat, and the screen must not lock out a move the rules
+  // allow. That principle is unchanged and is why no button here is disabled.
+  //
+  // What changed is what gets drawn. `playDay` runs a story once, so three taps
+  // used to show three slots for an issue that would print one — a preview that
+  // disagreed with the paper. Now the repeat is said in words instead.
   await expect(page.locator('#reporters')).toHaveText('3/3');
   const advertorial = page.locator('#available .article[data-source="advertorial"] .publish');
   await advertorial.click();
@@ -308,10 +312,17 @@ test('queueing one story twice costs one reporter, not two', async ({ page }) =>
 
   await advertorial.click();
   await advertorial.click();
-  await expect(page.locator('#tomorrow .tomorrow-slot')).toHaveCount(3);
-  // Three slots queued, one reporter spent: the advertiser gets one page.
+  await expect(page.locator('#tomorrow .tomorrow-slot')).toHaveCount(1);
+  await expect(page.locator('#tomorrow .tomorrow-slot')).toHaveAttribute('data-times', '3');
+  await expect(page.locator('#tomorrow .tomorrow-slot')).toContainText('set 3 times · runs once');
+  // One reporter spent whatever the tap count: the advertiser gets one page.
   await expect(page.locator('#reporters')).toHaveText('2/3');
   await expect(page.locator('#tomorrow-slots')).toHaveText('2');
+
+  // And taking it out takes out every tap that put it there, not one of them.
+  await page.locator('#tomorrow .tomorrow-slot .remove').click();
+  await expect(page.locator('#tomorrow .tomorrow-slot')).toHaveCount(0);
+  await expect(page.locator('#reporters')).toHaveText('3/3');
 });
 
 test('an issue is built as a lead and an inside, and can be taken apart again', async ({ page }) => {
@@ -678,9 +689,17 @@ test('the lead is set larger than the inside, and both keep their remove button'
   await page.goto('/');
   await expect(page.locator('#game')).toBeVisible();
 
+  // Two different stories are needed now that a slot is a story rather than a
+  // tap: tapping one card twice gives a lead and no inside. Day 1 offers only
+  // the advertorial, so buy one in — the same move the lead-and-inside test
+  // upstream uses to get a second thing on the desk.
+  await page.locator('#buy-stringer').click();
+  await page.locator('#next-day').click();
+
   const publish = page.locator('#available .voice.publish');
+  await expect(publish).toHaveCount(2);
   await publish.nth(0).click();
-  await publish.nth(0).click();
+  await publish.nth(1).click();
 
   const slots = page.locator('#tomorrow .tomorrow-slot');
   await expect(slots).toHaveCount(2);
