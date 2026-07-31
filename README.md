@@ -31,6 +31,13 @@ That feed is the archive **with the answer taken out**. The site also publishes
 in the payload is a quiz, and the one thing this game argues is that you decide
 without knowing.
 
+**The figures are a first calibration rather than a finding.** Wages, cover
+price, growth per story and the delay before a bill lands were set to make a run
+playable, not because anything says a paper of this size worked that way. Read
+the numbers as a starting point that will move, not as research. This used to be
+said on the page itself; it moved here when it turned out to be costing a phone
+player half of the first screen.
+
 The split is enforced on both sides. The site builds `play.json` field by field
 rather than spreading the episode, so a new field cannot leak by accident, and
 this repository has a test that fails if the word `outcome` ever appears in the
