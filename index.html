@@ -91,38 +91,62 @@
           <div class="issue" id="desk">
             <p class="eyebrow visually-hidden" id="desk-eyebrow" tabindex="-1">Tomorrow's paper</p>
 
-            <div id="step-available">
-              <h2>What can run?</h2>
-              <p class="meta" id="available-empty">Nothing has come back from anyone yet.</p>
-              <ul class="voices" id="available"></ul>
-            </div>
+            <!--
+              Two groups, split by when a thing pays.
 
-            <div id="step-sources">
-              <h2>What is anyone working on?</h2>
-              <ul class="voices" id="sources"></ul>
-            </div>
+              `#today` holds the only section whose contents can reach tomorrow's
+              page. Everything in `#later` buys something on a different day: a
+              source that becomes a story in six days, a reporter, a purchase.
+              That distinction is what the economy actually turns on, which is
+              why it is the one the layout draws.
 
-            <div id="step-staff">
-              <h2>The newsroom</h2>
-              <div class="choices">
-                <button type="button" class="cta" id="hire">Hire a reporter</button>
-                <button type="button" class="cta" id="fire">Let one go</button>
+              `#today` carries no label of its own — `#step-available` already
+              has a visible heading, and a second would be two names for one
+              thing. `#later` needs one, because it groups three headings that
+              would otherwise read as peers of the first.
+            -->
+            <section id="today">
+              <div id="step-available">
+                <h2>What can run?</h2>
+                <p class="meta" id="available-empty">Nothing has come back from anyone yet.</p>
+                <ul class="voices" id="available"></ul>
               </div>
-            </div>
+            </section>
+
+            <section id="later" aria-labelledby="later-label">
+              <!-- An `h2`, not a `p`: it has to name the group for a screen
+                   reader, and a paragraph names nothing. The three headings
+                   below it are hidden precisely because this one speaks for
+                   them. -->
+              <h2 class="group-label" id="later-label">Pays off later</h2>
+
+              <div id="step-sources">
+                <h2>What is anyone working on?</h2>
+                <ul class="voices" id="sources"></ul>
+              </div>
+
+              <div id="step-staff">
+                <h2>The newsroom</h2>
+                <div class="choices">
+                  <button type="button" class="cta" id="hire">Hire a reporter</button>
+                  <button type="button" class="cta" id="fire">Let one go</button>
+                </div>
+              </div>
 
             <!-- Their own heading. Taking the wire and buying a stringer story
                  are ways to fill a paper, not headcount, and under "The newsroom"
                  nobody scanning by heading would look for them. -->
-            <div id="step-buy">
-              <h2>What can you buy in?</h2>
-              <div class="choices">
-                <!-- Labelled here as well as in render(): an empty button has no
-                     accessible name, and these two are nameless in the served
-                     document and in every moment before the first render. -->
-                <button type="button" class="cta" id="wire">Take the wire</button>
-                <button type="button" class="cta" id="buy-stringer">Buy a story</button>
+              <div id="step-buy">
+                <h2>What can you buy in?</h2>
+                <div class="choices">
+                  <!-- Labelled here as well as in render(): an empty button has no
+                       accessible name, and these two are nameless in the served
+                       document and in every moment before the first render. -->
+                  <button type="button" class="cta" id="wire">Take the wire</button>
+                  <button type="button" class="cta" id="buy-stringer">Buy a story</button>
+                </div>
               </div>
-            </div>
+            </section>
 
             <p class="meta" id="planned">Nothing planned for tomorrow.</p>
             <!-- A real button, not a click handler on the paragraph. The plan is

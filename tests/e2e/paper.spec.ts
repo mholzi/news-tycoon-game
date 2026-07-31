@@ -800,3 +800,58 @@ test.describe('dark theme', () => {
     expect(paint.foldText).not.toBe(paint.body);
   });
 });
+
+/*
+ * The desk reads as two groups, not four peers.
+ *
+ * What can reach tomorrow's page sits apart from what pays off some other day,
+ * because that split is the one the game's economy turns on: a story now, or a
+ * source that becomes a story in six days.
+ */
+test('the desk splits into today and later, in that order', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+  await expect(page.locator('#game')).toBeVisible();
+
+  const shape = await page.evaluate(() => {
+    const el = (id: string) => document.getElementById(id)!;
+    const kids = (id: string) =>
+      [...el(id).children].map((c) => c.id || c.className).filter(Boolean);
+    const before = (a: string, b: string) =>
+      !!(el(a).compareDocumentPosition(el(b)) & Node.DOCUMENT_POSITION_FOLLOWING);
+    return {
+      today: kids('today'),
+      later: kids('later'),
+      todayBeforeLater: before('today', 'later'),
+      laterBeforePlanned: before('later', 'planned'),
+      labelledBy: el('later').getAttribute('aria-labelledby'),
+      // The eyebrow is the focus target after Start again. It must still be the
+      // first thing in the desk, or that focus move lands somewhere else.
+      firstInDesk: el('desk').firstElementChild?.id,
+    };
+  });
+
+  expect(shape.today).toEqual(['step-available']);
+  expect(shape.later).toEqual(['later-label', 'step-sources', 'step-staff', 'step-buy']);
+  expect(shape.todayBeforeLater).toBe(true);
+  expect(shape.laterBeforePlanned).toBe(true);
+  expect(shape.labelledBy).toBe('later-label');
+  expect(shape.firstInDesk).toBe('desk-eyebrow');
+});
+
+test('later lays out in two columns on a desktop', async ({ page }) => {
+  await serveFeed(page);
+  await page.goto('/');
+  await expect(page.locator('#game')).toBeVisible();
+  await page.setViewportSize({ width: 1280, height: 900 });
+
+  const layout = await page.evaluate(() => {
+    const tracks = getComputedStyle(document.getElementById('later')!).gridTemplateColumns;
+    const sources = document.getElementById('step-sources')!.getBoundingClientRect();
+    const staff = document.getElementById('step-staff')!.getBoundingClientRect();
+    return { tracks, sameRow: Math.abs(sources.top - staff.top) };
+  });
+
+  expect(layout.tracks.trim().split(/\s+/)).toHaveLength(2);
+  expect(layout.sameRow).toBeLessThanOrEqual(2);
+});

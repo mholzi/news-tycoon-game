@@ -146,3 +146,19 @@ test('the paper opens on the masthead, not on an explanation', async ({ page }) 
   const top = await page.locator('#mast').evaluate((el) => el.getBoundingClientRect().top);
   expect(top).toBeLessThan(120);
 });
+
+/*
+ * On a phone the two groups stack.
+ *
+ * Two columns at 390px would put the newsroom controls in a half-width column,
+ * which is where the 44px target rule starts to bite. The phone block flattens
+ * `#later`; before this change it flattened `#desk`, which is no longer a grid.
+ */
+test('later stacks to one column on a phone', async ({ page }) => {
+  await openGame(page);
+
+  const tracks = await page.evaluate(
+    () => getComputedStyle(document.getElementById('later')!).gridTemplateColumns,
+  );
+  expect(tracks.trim().split(/\s+/)).toHaveLength(1);
+});

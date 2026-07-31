@@ -507,16 +507,64 @@ button.cta:disabled {
 
 /* ---- the desk, below the fold ---- */
 
+/*
+ * The desk splits by when a thing pays.
+ *
+ * It used to be four sections in a two-column grid, all shouting at once. Now
+ * it is a column of two groups: what can reach tomorrow's page, and what buys
+ * something on a different day. That distinction is the one the economy turns
+ * on, so it is the one the layout draws.
+ *
+ * `#desk` itself stops being a grid — the grid moved into `#later`, where three
+ * short sections use it and one long list did not.
+ */
 #desk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Today. The heavy rule under the heading is what marks it as the half that
+   reaches the page; the group carries no label of its own. */
+#today #step-available > h2 {
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: var(--space-2);
+}
+
+#later {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-3) var(--space-4);
   align-items: start;
 }
 
-#desk > #planned,
-#desk > .choices {
+/* The label spans both columns and sets the hairline against the heavy rule
+   above. Quiet by weight and colour, never by opacity: dimming live controls
+   would fight the contrast and target-size rules the suite already asserts. */
+.group-label {
   grid-column: 1 / -1;
+  font-family: var(--mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 400;
+  margin: 0;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--rule);
+}
+
+/* Named by `.group-label` above them, so saying it three more times on screen
+   would be noise. They stay in the markup for a screen reader. */
+#later #step-sources > h2,
+#later #step-staff > h2,
+#later #step-buy > h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 #book {
@@ -544,7 +592,7 @@ button.cta:disabled {
 
 @media (max-width: 480px) {
   #tomorrow,
-  #desk {
+  #later {
     grid-template-columns: 1fr;
   }
 
