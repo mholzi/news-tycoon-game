@@ -671,11 +671,18 @@ button.cta:disabled {
    is.
    ========================================================================== */
 
-/* Float rather than flex order: both parents are flex columns, and a float
-   keeps the reference out of that flow without reordering anything. */
+/*
+ * The first line of the card, not a float.
+ *
+ * The spec said "floated right", and the first version of this rule said so
+ * too. It was inert: `.voice` and `.tomorrow-slot` are both flex columns, and
+ * `float` does nothing to a flex item. The reference has been rendering as the
+ * card's first line the whole time, which reads like a reference on a filing
+ * card and is better than what was specified — but the comment claimed a
+ * mechanism that was not running, so it is corrected rather than left to
+ * mislead the next reader.
+ */
 .voice-ref {
-  float: right;
-  margin-left: var(--space-2);
   font-family: var(--mono);
   font-size: var(--step--1);
   color: var(--ink-faint);
