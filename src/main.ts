@@ -87,6 +87,8 @@ function start(pool: Playable[]): void {
   const mast = el('mast');
   const mastName = el('mast-name');
   const datelineEl = el('dateline');
+  const finance = el('finance');
+  const financeToggle = el<HTMLButtonElement>('finance-toggle');
   const fold = el('fold');
   const desk = el('desk');
   const stepTomorrow = el('step-tomorrow');
@@ -408,6 +410,15 @@ function start(pool: Playable[]): void {
     stepTomorrow.hidden = state.over;
     mast.hidden = state.over;
     fold.hidden = state.over;
+    /*
+     * Finance goes with the masthead, and closes rather than just hiding.
+     *
+     * The panel is opened from a control inside `#mast`, so leaving it open
+     * across the ending would strand it under a hidden button with no way to
+     * shut it. Closing it here also means `Start again` opens on the masthead,
+     * which is where a new campaign starts.
+     */
+    if (state.over) closeFinance();
     if (state.over) {
       overHeading.textContent = endingHeading(state);
       overText.textContent = endingText(state);
@@ -422,6 +433,24 @@ function start(pool: Playable[]): void {
     // makes the ending the reading position.
     if (state.over && endingWasHidden) overHeading.focus();
   }
+
+  /**
+   * Shut the finance panel and say so on the control that opens it.
+   *
+   * `hidden` and `aria-expanded` are one fact written in two places, so they
+   * are only ever set together — a panel that is closed while the button still
+   * reads "expanded" is a screen reader being told the opposite of the screen.
+   */
+  function closeFinance(): void {
+    finance.hidden = true;
+    financeToggle.setAttribute('aria-expanded', 'false');
+  }
+
+  financeToggle.addEventListener('click', () => {
+    const open = finance.hidden;
+    finance.hidden = !open;
+    financeToggle.setAttribute('aria-expanded', String(open));
+  });
 
   // A plan is a list of intentions, so it has to be possible to change your
   // mind. Without this the only way out of a misclick was to play the day.
